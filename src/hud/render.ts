@@ -145,6 +145,11 @@ export async function render(context: HudRenderContext, config: HudConfig): Prom
     if (keySource) gitElements.push(keySource);
   }
 
+  // Profile name (from CLAUDE_CONFIG_DIR)
+  if (enabledElements.profile && context.profileName) {
+    gitElements.push(bold(`profile:${context.profileName}`));
+  }
+
   // [OMC#X.Y.Z] label with optional update notification
   if (enabledElements.omcLabel) {
     const versionTag = context.omcVersion ? `#${context.omcVersion}` : '';
