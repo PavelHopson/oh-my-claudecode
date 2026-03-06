@@ -50,7 +50,11 @@ import {
 import type { SubagentStartInput, SubagentStopInput } from "./subagent-tracker/index.js";
 import type { PreCompactInput } from "./pre-compact/index.js";
 import type { SetupInput } from "./setup/index.js";
-import type { PermissionRequestInput } from "./permission-handler/index.js";
+import {
+  getBackgroundBashPermissionFallback,
+  getBackgroundTaskPermissionFallback,
+  type PermissionRequestInput,
+} from "./permission-handler/index.js";
 import type { SessionEndInput } from "./session-end/index.js";
 import type { StopContext } from "./todo-continuation/index.js";
 // Security: wrap untrusted file content to prevent prompt injection
@@ -1058,16 +1062,62 @@ function processPreToolUse(input: HookInput): HookOutput {
     };
   }
 
+  const preToolMessages = enforcementResult.message ? [enforcementResult.message] : [];
+  let modifiedToolInput: Record<string, unknown> | undefined;
+
   // Force-inherit: strip `model` parameter from Task calls so agents inherit
   // the user's Claude Code model setting instead of OMC per-agent routing (issue #1135)
-  let forceInheritInput: Record<string, unknown> | undefined;
   if (input.toolName === "Task") {
-    const taskInput = input.toolInput as Record<string, unknown> | undefined;
-    if (taskInput?.model) {
+    const originalTaskInput = input.toolInput as Record<string, unknown> | undefined;
+    const nextTaskInput = originalTaskInput ? { ...originalTaskInput } : {};
+    let changed = false;
+
+    if (nextTaskInput.model) {
       const config = loadConfig();
       if (config.routing?.forceInherit) {
-        const { model: _stripped, ...rest } = taskInput;
-        forceInheritInput = rest;
+        delete nextTaskInput.model;
+        changed = true;
+      }
+    }
+
+    if (nextTaskInput.run_in_background === true) {
+      const subagentType = typeof nextTaskInput.subagent_type === "string"
+        ? nextTaskInput.subagent_type
+        : undefined;
+      const permissionFallback = getBackgroundTaskPermissionFallback(directory, subagentType);
+
+      if (permissionFallback.shouldFallback) {
+        const reason = `[BACKGROUND PERMISSIONS] ${subagentType || "This background agent"} may need ${permissionFallback.missingTools.join(", ")} permissions, but background agents cannot request interactive approval. Re-run without \`run_in_background=true\` or pre-approve ${permissionFallback.missingTools.join(", ")} in Claude Code settings.`;
+        return {
+          continue: false,
+          reason,
+          message: reason,
+        };
+      }
+    }
+
+    if (changed) {
+      modifiedToolInput = nextTaskInput;
+    }
+  }
+
+  if (input.toolName === "Bash") {
+    const originalBashInput = input.toolInput as Record<string, unknown> | undefined;
+    const nextBashInput = originalBashInput ? { ...originalBashInput } : {};
+
+    if (nextBashInput.run_in_background === true) {
+      const command = typeof nextBashInput.command === "string"
+        ? nextBashInput.command
+        : undefined;
+      const permissionFallback = getBackgroundBashPermissionFallback(directory, command);
+
+      if (permissionFallback.shouldFallback) {
+        const reason = "[BACKGROUND PERMISSIONS] This Bash command is not auto-approved for background execution. Re-run without `run_in_background=true` or pre-approve the command in Claude Code settings.";
+        return {
+          continue: false,
+          reason,
+          message: reason,
+        };
       }
     }
   }
@@ -1129,7 +1179,8 @@ function processPreToolUse(input: HookInput): HookOutput {
   // Warn about pkill -f self-termination risk (issue #210)
   // Matches: pkill -f, pkill -9 -f, pkill --full, etc.
   if (input.toolName === "Bash") {
-    const command = (input.toolInput as { command?: string })?.command ?? "";
+    const effectiveBashInput = (modifiedToolInput ?? input.toolInput) as { command?: string } | undefined;
+    const command = effectiveBashInput?.command ?? "";
     if (
       PKILL_F_FLAG_PATTERN.test(command) ||
       PKILL_FULL_FLAG_PATTERN.test(command)
@@ -1143,6 +1194,7 @@ function processPreToolUse(input: HookInput): HookOutput {
           '  - `kill $(pgrep -f "pattern")` (pgrep does not kill itself)',
           "Proceeding anyway, but the command may kill this shell session.",
         ].join("\n"),
+        ...(modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}),
       };
     }
   }
@@ -1150,7 +1202,7 @@ function processPreToolUse(input: HookInput): HookOutput {
   // Background process guard - prevent forkbomb (issue #302)
   // Block new background tasks if limit is exceeded
   if (input.toolName === "Task" || input.toolName === "Bash") {
-    const toolInput = input.toolInput as
+    const toolInput = (modifiedToolInput ?? input.toolInput) as
       | {
           description?: string;
           subagent_type?: string;
@@ -1178,7 +1230,7 @@ function processPreToolUse(input: HookInput): HookOutput {
 
   // Track Task tool invocations for HUD background tasks display
   if (input.toolName === "Task") {
-    const toolInput = input.toolInput as
+    const toolInput = (modifiedToolInput ?? input.toolInput) as
       | {
           description?: string;
           subagent_type?: string;
@@ -1216,13 +1268,11 @@ function processPreToolUse(input: HookInput): HookOutput {
   if (input.toolName === "Task") {
     const dashboard = getAgentDashboard(directory);
     if (dashboard) {
-      const combined = enforcementResult.message
-        ? `${enforcementResult.message}\n\n${dashboard}`
-        : dashboard;
+      const combined = [...preToolMessages, dashboard].filter(Boolean).join("\n\n");
       return {
         continue: true,
-        message: combined,
-        ...(forceInheritInput ? { modifiedInput: forceInheritInput } : {}),
+        ...(combined ? { message: combined } : {}),
+        ...(modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}),
       };
     }
   }
@@ -1238,8 +1288,8 @@ function processPreToolUse(input: HookInput): HookOutput {
 
   return {
     continue: true,
-    ...(enforcementResult.message ? { message: enforcementResult.message } : {}),
-    ...(forceInheritInput ? { modifiedInput: forceInheritInput } : {}),
+    ...(preToolMessages.length > 0 ? { message: preToolMessages.join("\n\n") } : {}),
+    ...(modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}),
   };
 }
 

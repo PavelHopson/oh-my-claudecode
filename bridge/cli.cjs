@@ -10898,6 +10898,209 @@ var init_subagent_tracker = __esm({
   }
 });
 
+// src/hooks/permission-handler/index.ts
+var permission_handler_exports = {};
+__export(permission_handler_exports, {
+  getBackgroundBashPermissionFallback: () => getBackgroundBashPermissionFallback,
+  getBackgroundTaskPermissionFallback: () => getBackgroundTaskPermissionFallback,
+  getClaudePermissionAllowEntries: () => getClaudePermissionAllowEntries,
+  handlePermissionRequest: () => handlePermissionRequest,
+  hasClaudePermissionApproval: () => hasClaudePermissionApproval,
+  isActiveModeRunning: () => isActiveModeRunning,
+  isHeredocWithSafeBase: () => isHeredocWithSafeBase,
+  isSafeCommand: () => isSafeCommand,
+  processPermissionRequest: () => processPermissionRequest
+});
+function readPermissionAllowEntries(filePath) {
+  try {
+    if (!fs10.existsSync(filePath)) {
+      return [];
+    }
+    const settings = JSON.parse(fs10.readFileSync(filePath, "utf-8"));
+    const allow = settings?.permissions?.allow;
+    return Array.isArray(allow) ? allow.filter((entry) => typeof entry === "string") : [];
+  } catch {
+    return [];
+  }
+}
+function getClaudePermissionAllowEntries(directory) {
+  const projectSettingsPath = path13.join(directory, ".claude", "settings.local.json");
+  const globalConfigDir = getClaudeConfigDir();
+  const candidatePaths = [
+    projectSettingsPath,
+    path13.join(globalConfigDir, "settings.local.json"),
+    path13.join(globalConfigDir, "settings.json")
+  ];
+  const allowEntries = /* @__PURE__ */ new Set();
+  for (const candidatePath of candidatePaths) {
+    for (const entry of readPermissionAllowEntries(candidatePath)) {
+      allowEntries.add(entry.trim());
+    }
+  }
+  return [...allowEntries];
+}
+function hasGenericToolPermission(allowEntries, toolName) {
+  return allowEntries.some((entry) => entry === toolName || entry.startsWith(`${toolName}(`));
+}
+function hasClaudePermissionApproval(directory, toolName, command) {
+  const allowEntries = getClaudePermissionAllowEntries(directory);
+  if (toolName !== "Bash") {
+    return hasGenericToolPermission(allowEntries, toolName);
+  }
+  if (allowEntries.includes("Bash")) {
+    return true;
+  }
+  const trimmedCommand = command?.trim();
+  if (!trimmedCommand) {
+    return false;
+  }
+  return allowEntries.includes(`Bash(${trimmedCommand})`);
+}
+function getBackgroundTaskPermissionFallback(directory, subagentType) {
+  const normalizedSubagentType = subagentType?.trim().toLowerCase();
+  if (!normalizedSubagentType || !BACKGROUND_MUTATION_SUBAGENTS.has(normalizedSubagentType)) {
+    return { shouldFallback: false, missingTools: [] };
+  }
+  const missingTools = ["Edit", "Write"].filter(
+    (toolName) => !hasClaudePermissionApproval(directory, toolName)
+  );
+  return {
+    shouldFallback: missingTools.length > 0,
+    missingTools
+  };
+}
+function getBackgroundBashPermissionFallback(directory, command) {
+  if (!command || isSafeCommand(command) || isHeredocWithSafeBase(command)) {
+    return { shouldFallback: false, missingTools: [] };
+  }
+  return hasClaudePermissionApproval(directory, "Bash", command) ? { shouldFallback: false, missingTools: [] } : { shouldFallback: true, missingTools: ["Bash"] };
+}
+function isSafeCommand(command) {
+  const trimmed = command.trim();
+  if (DANGEROUS_SHELL_CHARS.test(trimmed)) {
+    return false;
+  }
+  return SAFE_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
+function isHeredocWithSafeBase(command) {
+  const trimmed = command.trim();
+  if (!trimmed.includes("\n")) {
+    return false;
+  }
+  if (!HEREDOC_PATTERN.test(trimmed)) {
+    return false;
+  }
+  const firstLine = trimmed.split("\n")[0].trim();
+  return SAFE_HEREDOC_PATTERNS.some((pattern) => pattern.test(firstLine));
+}
+function isActiveModeRunning(directory) {
+  const stateDir = path13.join(getOmcRoot(directory), "state");
+  if (!fs10.existsSync(stateDir)) {
+    return false;
+  }
+  const activeStateFiles = [
+    "autopilot-state.json",
+    "ralph-state.json",
+    "ultrawork-state.json",
+    "team-state.json",
+    "omc-teams-state.json"
+  ];
+  for (const stateFile of activeStateFiles) {
+    const statePath = path13.join(stateDir, stateFile);
+    if (fs10.existsSync(statePath)) {
+      try {
+        const content = fs10.readFileSync(statePath, "utf-8");
+        const state = JSON.parse(content);
+        if (state.active === true || state.status === "running" || state.status === "active") {
+          return true;
+        }
+      } catch (_error) {
+        continue;
+      }
+    }
+  }
+  return false;
+}
+function processPermissionRequest(input) {
+  const toolName = input.tool_name.replace(/^proxy_/, "");
+  if (toolName !== "Bash") {
+    return { continue: true };
+  }
+  const command = input.tool_input.command;
+  if (!command || typeof command !== "string") {
+    return { continue: true };
+  }
+  if (isSafeCommand(command)) {
+    return {
+      continue: true,
+      hookSpecificOutput: {
+        hookEventName: "PermissionRequest",
+        decision: {
+          behavior: "allow",
+          reason: "Safe read-only or test command"
+        }
+      }
+    };
+  }
+  if (isHeredocWithSafeBase(command)) {
+    return {
+      continue: true,
+      hookSpecificOutput: {
+        hookEventName: "PermissionRequest",
+        decision: {
+          behavior: "allow",
+          reason: "Safe command with heredoc content"
+        }
+      }
+    };
+  }
+  return { continue: true };
+}
+async function handlePermissionRequest(input) {
+  return processPermissionRequest(input);
+}
+var fs10, path13, SAFE_PATTERNS, DANGEROUS_SHELL_CHARS, HEREDOC_PATTERN, SAFE_HEREDOC_PATTERNS, BACKGROUND_MUTATION_SUBAGENTS;
+var init_permission_handler = __esm({
+  "src/hooks/permission-handler/index.ts"() {
+    "use strict";
+    fs10 = __toESM(require("fs"), 1);
+    path13 = __toESM(require("path"), 1);
+    init_worktree_paths();
+    init_paths();
+    SAFE_PATTERNS = [
+      /^git (status|diff|log|branch|show|fetch)/,
+      /^npm (test|run (test|lint|build|check|typecheck))/,
+      /^pnpm (test|run (test|lint|build|check|typecheck))/,
+      /^yarn (test|run (test|lint|build|check|typecheck))/,
+      /^tsc( |$)/,
+      /^eslint /,
+      /^prettier /,
+      /^cargo (test|check|clippy|build)/,
+      /^pytest/,
+      /^python -m pytest/,
+      /^ls( |$)/
+      // REMOVED: cat, head, tail - they allow reading arbitrary files
+    ];
+    DANGEROUS_SHELL_CHARS = /[;&|`$()<>\n\r\t\0\\{}\[\]*?~!#]/;
+    HEREDOC_PATTERN = /<<[-~]?\s*['"]?\w+['"]?/;
+    SAFE_HEREDOC_PATTERNS = [
+      /^git commit\b/,
+      /^git tag\b/
+    ];
+    BACKGROUND_MUTATION_SUBAGENTS = /* @__PURE__ */ new Set([
+      "executor",
+      "deep-executor",
+      "designer",
+      "writer",
+      "build-fixer",
+      "git-master",
+      "test-engineer",
+      "qa-tester",
+      "document-specialist"
+    ]);
+  }
+});
+
 // src/agents/prompt-helpers.ts
 function getPackageDir4() {
   if (typeof __dirname !== "undefined" && __dirname) {
@@ -18583,12 +18786,12 @@ __export(session_end_exports, {
   recordSessionMetrics: () => recordSessionMetrics
 });
 function getAgentCounts(directory) {
-  const trackingPath = path13.join(getOmcRoot(directory), "state", "subagent-tracking.json");
-  if (!fs10.existsSync(trackingPath)) {
+  const trackingPath = path14.join(getOmcRoot(directory), "state", "subagent-tracking.json");
+  if (!fs11.existsSync(trackingPath)) {
     return { spawned: 0, completed: 0 };
   }
   try {
-    const content = fs10.readFileSync(trackingPath, "utf-8");
+    const content = fs11.readFileSync(trackingPath, "utf-8");
     const tracking = JSON.parse(content);
     const spawned = tracking.agents?.length || 0;
     const completed = tracking.agents?.filter((a) => a.status === "completed").length || 0;
@@ -18598,33 +18801,33 @@ function getAgentCounts(directory) {
   }
 }
 function getModesUsed(directory) {
-  const stateDir = path13.join(getOmcRoot(directory), "state");
+  const stateDir = path14.join(getOmcRoot(directory), "state");
   const modes = [];
-  if (!fs10.existsSync(stateDir)) {
+  if (!fs11.existsSync(stateDir)) {
     return modes;
   }
   for (const { file, mode } of SESSION_METRICS_MODE_FILES) {
-    const statePath = path13.join(stateDir, file);
-    if (fs10.existsSync(statePath)) {
+    const statePath = path14.join(stateDir, file);
+    if (fs11.existsSync(statePath)) {
       modes.push(mode);
     }
   }
   return modes;
 }
 function getSessionStartTime2(directory, sessionId) {
-  const stateDir = path13.join(getOmcRoot(directory), "state");
-  if (!fs10.existsSync(stateDir)) {
+  const stateDir = path14.join(getOmcRoot(directory), "state");
+  if (!fs11.existsSync(stateDir)) {
     return void 0;
   }
-  const stateFiles = fs10.readdirSync(stateDir).filter((f) => f.endsWith(".json"));
+  const stateFiles = fs11.readdirSync(stateDir).filter((f) => f.endsWith(".json"));
   let matchedStartTime;
   let matchedEpoch = Infinity;
   let legacyStartTime;
   let legacyEpoch = Infinity;
   for (const file of stateFiles) {
     try {
-      const statePath = path13.join(stateDir, file);
-      const content = fs10.readFileSync(statePath, "utf-8");
+      const statePath = path14.join(stateDir, file);
+      const content = fs11.readFileSync(statePath, "utf-8");
       const state = JSON.parse(content);
       if (!state.started_at) {
         continue;
@@ -18677,28 +18880,28 @@ function recordSessionMetrics(directory, input) {
 function cleanupTransientState(directory) {
   let filesRemoved = 0;
   const omcDir = getOmcRoot(directory);
-  if (!fs10.existsSync(omcDir)) {
+  if (!fs11.existsSync(omcDir)) {
     return filesRemoved;
   }
-  const trackingPath = path13.join(omcDir, "state", "subagent-tracking.json");
-  if (fs10.existsSync(trackingPath)) {
+  const trackingPath = path14.join(omcDir, "state", "subagent-tracking.json");
+  if (fs11.existsSync(trackingPath)) {
     try {
-      fs10.unlinkSync(trackingPath);
+      fs11.unlinkSync(trackingPath);
       filesRemoved++;
     } catch (_error) {
     }
   }
-  const checkpointsDir = path13.join(omcDir, "checkpoints");
-  if (fs10.existsSync(checkpointsDir)) {
+  const checkpointsDir = path14.join(omcDir, "checkpoints");
+  if (fs11.existsSync(checkpointsDir)) {
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1e3;
     try {
-      const files = fs10.readdirSync(checkpointsDir);
+      const files = fs11.readdirSync(checkpointsDir);
       for (const file of files) {
-        const filePath = path13.join(checkpointsDir, file);
-        const stats = fs10.statSync(filePath);
+        const filePath = path14.join(checkpointsDir, file);
+        const stats = fs11.statSync(filePath);
         if (stats.mtimeMs < oneDayAgo) {
-          fs10.unlinkSync(filePath);
+          fs11.unlinkSync(filePath);
           filesRemoved++;
         }
       }
@@ -18707,13 +18910,13 @@ function cleanupTransientState(directory) {
   }
   const removeTmpFiles = (dir) => {
     try {
-      const entries = fs10.readdirSync(dir, { withFileTypes: true });
+      const entries = fs11.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
-        const fullPath = path13.join(dir, entry.name);
+        const fullPath = path14.join(dir, entry.name);
         if (entry.isDirectory()) {
           removeTmpFiles(fullPath);
         } else if (entry.name.endsWith(".tmp")) {
-          fs10.unlinkSync(fullPath);
+          fs11.unlinkSync(fullPath);
           filesRemoved++;
         }
       }
@@ -18724,11 +18927,11 @@ function cleanupTransientState(directory) {
   return filesRemoved;
 }
 async function extractPythonReplSessionIdsFromTranscript(transcriptPath) {
-  if (!transcriptPath || !isValidTranscriptPath(transcriptPath) || !fs10.existsSync(transcriptPath)) {
+  if (!transcriptPath || !isValidTranscriptPath(transcriptPath) || !fs11.existsSync(transcriptPath)) {
     return [];
   }
   const sessionIds = /* @__PURE__ */ new Set();
-  const stream = fs10.createReadStream(transcriptPath, { encoding: "utf-8" });
+  const stream = fs11.createReadStream(transcriptPath, { encoding: "utf-8" });
   const rl = readline.createInterface({
     input: stream,
     crlfDelay: Infinity
@@ -18769,21 +18972,21 @@ async function extractPythonReplSessionIdsFromTranscript(transcriptPath) {
 function cleanupModeStates(directory, sessionId) {
   let filesRemoved = 0;
   const modesCleaned = [];
-  const stateDir = path13.join(getOmcRoot(directory), "state");
-  if (!fs10.existsSync(stateDir)) {
+  const stateDir = path14.join(getOmcRoot(directory), "state");
+  if (!fs11.existsSync(stateDir)) {
     return { filesRemoved, modesCleaned };
   }
   for (const { file, mode } of SESSION_END_MODE_STATE_FILES) {
-    const localPath = path13.join(stateDir, file);
-    if (fs10.existsSync(localPath)) {
+    const localPath = path14.join(stateDir, file);
+    if (fs11.existsSync(localPath)) {
       try {
         if (file.endsWith(".json")) {
-          const content = fs10.readFileSync(localPath, "utf-8");
+          const content = fs11.readFileSync(localPath, "utf-8");
           const state = JSON.parse(content);
           if (state.active === true) {
             const stateSessionId = state.session_id;
             if (!sessionId || !stateSessionId || stateSessionId === sessionId) {
-              fs10.unlinkSync(localPath);
+              fs11.unlinkSync(localPath);
               filesRemoved++;
               if (!modesCleaned.includes(mode)) {
                 modesCleaned.push(mode);
@@ -18791,7 +18994,7 @@ function cleanupModeStates(directory, sessionId) {
             }
           }
         } else {
-          fs10.unlinkSync(localPath);
+          fs11.unlinkSync(localPath);
           filesRemoved++;
           if (!modesCleaned.includes(mode)) {
             modesCleaned.push(mode);
@@ -18804,18 +19007,18 @@ function cleanupModeStates(directory, sessionId) {
   return { filesRemoved, modesCleaned };
 }
 function exportSessionSummary(directory, metrics) {
-  const sessionsDir = path13.join(getOmcRoot(directory), "sessions");
-  if (!fs10.existsSync(sessionsDir)) {
-    fs10.mkdirSync(sessionsDir, { recursive: true });
+  const sessionsDir = path14.join(getOmcRoot(directory), "sessions");
+  if (!fs11.existsSync(sessionsDir)) {
+    fs11.mkdirSync(sessionsDir, { recursive: true });
   }
   try {
     validateSessionId(metrics.session_id);
   } catch {
     return;
   }
-  const sessionFile = path13.join(sessionsDir, `${metrics.session_id}.json`);
+  const sessionFile = path14.join(sessionsDir, `${metrics.session_id}.json`);
   try {
-    fs10.writeFileSync(sessionFile, JSON.stringify(metrics, null, 2), "utf-8");
+    fs11.writeFileSync(sessionFile, JSON.stringify(metrics, null, 2), "utf-8");
   } catch (_error) {
   }
 }
@@ -18865,12 +19068,12 @@ async function processSessionEnd(input) {
 async function handleSessionEnd(input) {
   return processSessionEnd(input);
 }
-var fs10, path13, readline, PYTHON_REPL_TOOL_NAMES;
+var fs11, path14, readline, PYTHON_REPL_TOOL_NAMES;
 var init_session_end = __esm({
   "src/hooks/session-end/index.ts"() {
     "use strict";
-    fs10 = __toESM(require("fs"), 1);
-    path13 = __toESM(require("path"), 1);
+    fs11 = __toESM(require("fs"), 1);
+    path14 = __toESM(require("path"), 1);
     readline = __toESM(require("readline"), 1);
     init_callbacks();
     init_notifications();
@@ -19789,129 +19992,6 @@ var init_setup = __esm({
       ".omc-config.json"
     ];
     DEFAULT_STATE_MAX_AGE_DAYS = 7;
-  }
-});
-
-// src/hooks/permission-handler/index.ts
-var permission_handler_exports = {};
-__export(permission_handler_exports, {
-  handlePermissionRequest: () => handlePermissionRequest,
-  isActiveModeRunning: () => isActiveModeRunning,
-  isHeredocWithSafeBase: () => isHeredocWithSafeBase,
-  isSafeCommand: () => isSafeCommand,
-  processPermissionRequest: () => processPermissionRequest
-});
-function isSafeCommand(command) {
-  const trimmed = command.trim();
-  if (DANGEROUS_SHELL_CHARS.test(trimmed)) {
-    return false;
-  }
-  return SAFE_PATTERNS.some((pattern) => pattern.test(trimmed));
-}
-function isHeredocWithSafeBase(command) {
-  const trimmed = command.trim();
-  if (!trimmed.includes("\n")) {
-    return false;
-  }
-  if (!HEREDOC_PATTERN.test(trimmed)) {
-    return false;
-  }
-  const firstLine = trimmed.split("\n")[0].trim();
-  return SAFE_HEREDOC_PATTERNS.some((pattern) => pattern.test(firstLine));
-}
-function isActiveModeRunning(directory) {
-  const stateDir = path14.join(getOmcRoot(directory), "state");
-  if (!fs11.existsSync(stateDir)) {
-    return false;
-  }
-  const activeStateFiles = [
-    "autopilot-state.json",
-    "ralph-state.json",
-    "ultrawork-state.json",
-    "team-state.json",
-    "omc-teams-state.json"
-  ];
-  for (const stateFile of activeStateFiles) {
-    const statePath = path14.join(stateDir, stateFile);
-    if (fs11.existsSync(statePath)) {
-      try {
-        const content = fs11.readFileSync(statePath, "utf-8");
-        const state = JSON.parse(content);
-        if (state.active === true || state.status === "running" || state.status === "active") {
-          return true;
-        }
-      } catch (_error) {
-        continue;
-      }
-    }
-  }
-  return false;
-}
-function processPermissionRequest(input) {
-  const toolName = input.tool_name.replace(/^proxy_/, "");
-  if (toolName !== "Bash") {
-    return { continue: true };
-  }
-  const command = input.tool_input.command;
-  if (!command || typeof command !== "string") {
-    return { continue: true };
-  }
-  if (isSafeCommand(command)) {
-    return {
-      continue: true,
-      hookSpecificOutput: {
-        hookEventName: "PermissionRequest",
-        decision: {
-          behavior: "allow",
-          reason: "Safe read-only or test command"
-        }
-      }
-    };
-  }
-  if (isHeredocWithSafeBase(command)) {
-    return {
-      continue: true,
-      hookSpecificOutput: {
-        hookEventName: "PermissionRequest",
-        decision: {
-          behavior: "allow",
-          reason: "Safe command with heredoc content"
-        }
-      }
-    };
-  }
-  return { continue: true };
-}
-async function handlePermissionRequest(input) {
-  return processPermissionRequest(input);
-}
-var fs11, path14, SAFE_PATTERNS, DANGEROUS_SHELL_CHARS, HEREDOC_PATTERN, SAFE_HEREDOC_PATTERNS;
-var init_permission_handler = __esm({
-  "src/hooks/permission-handler/index.ts"() {
-    "use strict";
-    fs11 = __toESM(require("fs"), 1);
-    path14 = __toESM(require("path"), 1);
-    init_worktree_paths();
-    SAFE_PATTERNS = [
-      /^git (status|diff|log|branch|show|fetch)/,
-      /^npm (test|run (test|lint|build|check|typecheck))/,
-      /^pnpm (test|run (test|lint|build|check|typecheck))/,
-      /^yarn (test|run (test|lint|build|check|typecheck))/,
-      /^tsc( |$)/,
-      /^eslint /,
-      /^prettier /,
-      /^cargo (test|check|clippy|build)/,
-      /^pytest/,
-      /^python -m pytest/,
-      /^ls( |$)/
-      // REMOVED: cat, head, tail - they allow reading arbitrary files
-    ];
-    DANGEROUS_SHELL_CHARS = /[;&|`$()<>\n\r\t\0\\{}\[\]*?~!#]/;
-    HEREDOC_PATTERN = /<<[-~]?\s*['"]?\w+['"]?/;
-    SAFE_HEREDOC_PATTERNS = [
-      /^git commit\b/,
-      /^git tag\b/
-    ];
   }
 });
 
@@ -59602,6 +59682,7 @@ init_skill_state();
 init_hooks();
 init_subagent_tracker();
 init_session_replay();
+init_permission_handler();
 init_prompt_helpers();
 var PKILL_F_FLAG_PATTERN = /\bpkill\b.*\s-f\b/;
 var PKILL_FULL_FLAG_PATTERN = /\bpkill\b.*--full\b/;
@@ -60288,14 +60369,48 @@ Command blocked: ${command}`
       message: enforcementResult.message
     };
   }
-  let forceInheritInput;
+  const preToolMessages = enforcementResult.message ? [enforcementResult.message] : [];
+  let modifiedToolInput;
   if (input.toolName === "Task") {
-    const taskInput = input.toolInput;
-    if (taskInput?.model) {
+    const originalTaskInput = input.toolInput;
+    const nextTaskInput = originalTaskInput ? { ...originalTaskInput } : {};
+    let changed = false;
+    if (nextTaskInput.model) {
       const config2 = loadConfig();
       if (config2.routing?.forceInherit) {
-        const { model: _stripped, ...rest } = taskInput;
-        forceInheritInput = rest;
+        delete nextTaskInput.model;
+        changed = true;
+      }
+    }
+    if (nextTaskInput.run_in_background === true) {
+      const subagentType = typeof nextTaskInput.subagent_type === "string" ? nextTaskInput.subagent_type : void 0;
+      const permissionFallback = getBackgroundTaskPermissionFallback(directory, subagentType);
+      if (permissionFallback.shouldFallback) {
+        const reason = `[BACKGROUND PERMISSIONS] ${subagentType || "This background agent"} may need ${permissionFallback.missingTools.join(", ")} permissions, but background agents cannot request interactive approval. Re-run without \`run_in_background=true\` or pre-approve ${permissionFallback.missingTools.join(", ")} in Claude Code settings.`;
+        return {
+          continue: false,
+          reason,
+          message: reason
+        };
+      }
+    }
+    if (changed) {
+      modifiedToolInput = nextTaskInput;
+    }
+  }
+  if (input.toolName === "Bash") {
+    const originalBashInput = input.toolInput;
+    const nextBashInput = originalBashInput ? { ...originalBashInput } : {};
+    if (nextBashInput.run_in_background === true) {
+      const command = typeof nextBashInput.command === "string" ? nextBashInput.command : void 0;
+      const permissionFallback = getBackgroundBashPermissionFallback(directory, command);
+      if (permissionFallback.shouldFallback) {
+        const reason = "[BACKGROUND PERMISSIONS] This Bash command is not auto-approved for background execution. Re-run without `run_in_background=true` or pre-approve the command in Claude Code settings.";
+        return {
+          continue: false,
+          reason,
+          message: reason
+        };
       }
     }
   }
@@ -60336,7 +60451,8 @@ Command blocked: ${command}`
     });
   }
   if (input.toolName === "Bash") {
-    const command = input.toolInput?.command ?? "";
+    const effectiveBashInput = modifiedToolInput ?? input.toolInput;
+    const command = effectiveBashInput?.command ?? "";
     if (PKILL_F_FLAG_PATTERN.test(command) || PKILL_FULL_FLAG_PATTERN.test(command)) {
       return {
         continue: true,
@@ -60346,12 +60462,13 @@ Command blocked: ${command}`
           "  - `pkill <exact-process-name>` (without -f)",
           '  - `kill $(pgrep -f "pattern")` (pgrep does not kill itself)',
           "Proceeding anyway, but the command may kill this shell session."
-        ].join("\n")
+        ].join("\n"),
+        ...modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}
       };
     }
   }
   if (input.toolName === "Task" || input.toolName === "Bash") {
-    const toolInput = input.toolInput;
+    const toolInput = modifiedToolInput ?? input.toolInput;
     if (toolInput?.run_in_background) {
       const config2 = loadConfig();
       const maxBgTasks = config2.permissions?.maxBackgroundTasks ?? 5;
@@ -60365,7 +60482,7 @@ Command blocked: ${command}`
     }
   }
   if (input.toolName === "Task") {
-    const toolInput = input.toolInput;
+    const toolInput = modifiedToolInput ?? input.toolInput;
     if (toolInput?.description) {
       const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       addBackgroundTask(
@@ -60390,13 +60507,11 @@ Command blocked: ${command}`
   if (input.toolName === "Task") {
     const dashboard = getAgentDashboard(directory);
     if (dashboard) {
-      const combined = enforcementResult.message ? `${enforcementResult.message}
-
-${dashboard}` : dashboard;
+      const combined = [...preToolMessages, dashboard].filter(Boolean).join("\n\n");
       return {
         continue: true,
-        message: combined,
-        ...forceInheritInput ? { modifiedInput: forceInheritInput } : {}
+        ...combined ? { message: combined } : {},
+        ...modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}
       };
     }
   }
@@ -60409,8 +60524,8 @@ ${dashboard}` : dashboard;
   }
   return {
     continue: true,
-    ...enforcementResult.message ? { message: enforcementResult.message } : {},
-    ...forceInheritInput ? { modifiedInput: forceInheritInput } : {}
+    ...preToolMessages.length > 0 ? { message: preToolMessages.join("\n\n") } : {},
+    ...modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}
   };
 }
 function getInvokedSkillName(toolInput) {
