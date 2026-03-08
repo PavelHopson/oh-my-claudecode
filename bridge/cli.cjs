@@ -19175,25 +19175,26 @@ async function sendDiscord2(config2, message) {
     console.error("[stop-callback] Discord send failed:", error2 instanceof Error ? error2.message : "Unknown error");
   }
 }
-async function triggerStopCallbacks(metrics, _input) {
+async function triggerStopCallbacks(metrics, _input, options = {}) {
   const config2 = getOMCConfig();
   const callbacks = config2.stopHookCallbacks;
+  const skipPlatforms = new Set(options.skipPlatforms ?? []);
   if (!callbacks) {
     return;
   }
   const promises = [];
-  if (callbacks.file?.enabled && callbacks.file.path) {
+  if (!skipPlatforms.has("file") && callbacks.file?.enabled && callbacks.file.path) {
     const format = callbacks.file.format || "markdown";
     const summary = formatSessionSummary(metrics, format);
     promises.push(writeToFile(callbacks.file, summary, metrics.session_id));
   }
-  if (callbacks.telegram?.enabled) {
+  if (!skipPlatforms.has("telegram") && callbacks.telegram?.enabled) {
     const summary = formatSessionSummary(metrics, "markdown");
     const tags = normalizeTelegramTagList(callbacks.telegram.tagList);
     const message = prefixMessageWithTags(summary, tags);
     promises.push(sendTelegram2(callbacks.telegram, message));
   }
-  if (callbacks.discord?.enabled) {
+  if (!skipPlatforms.has("discord") && callbacks.discord?.enabled) {
     const summary = formatSessionSummary(metrics, "markdown");
     const tags = normalizeDiscordTagList(callbacks.discord.tagList);
     const message = prefixMessageWithTags(summary, tags);
@@ -19234,6 +19235,29 @@ __export(session_end_exports, {
   processSessionEnd: () => processSessionEnd,
   recordSessionMetrics: () => recordSessionMetrics
 });
+function hasExplicitNotificationConfig(profileName) {
+  const config2 = getOMCConfig();
+  if (profileName) {
+    const profile = config2.notificationProfiles?.[profileName];
+    if (profile && typeof profile.enabled === "boolean") {
+      return true;
+    }
+  }
+  if (config2.notifications && typeof config2.notifications.enabled === "boolean") {
+    return true;
+  }
+  return buildConfigFromEnv() !== null;
+}
+function getLegacyPlatformsCoveredByNotifications(enabledPlatforms) {
+  const overlappingPlatforms = [];
+  if (enabledPlatforms.includes("telegram")) {
+    overlappingPlatforms.push("telegram");
+  }
+  if (enabledPlatforms.includes("discord")) {
+    overlappingPlatforms.push("discord");
+  }
+  return overlappingPlatforms;
+}
 function getAgentCounts(directory) {
   const trackingPath = path14.join(getOmcRoot(directory), "state", "subagent-tracking.json");
   if (!fs11.existsSync(trackingPath)) {
@@ -19498,23 +19522,33 @@ async function processSessionEnd(input) {
     }
   } catch {
   }
+  const profileName = process.env.OMC_NOTIFY_PROFILE;
+  const notificationConfig = getNotificationConfig(profileName);
+  const shouldUseNewNotificationSystem = Boolean(
+    notificationConfig && hasExplicitNotificationConfig(profileName)
+  );
+  const enabledNotificationPlatforms = shouldUseNewNotificationSystem && notificationConfig ? getEnabledPlatforms(notificationConfig, "session-end") : [];
   await triggerStopCallbacks(metrics, {
     session_id: input.session_id,
     cwd: input.cwd
+  }, {
+    skipPlatforms: shouldUseNewNotificationSystem ? getLegacyPlatformsCoveredByNotifications(enabledNotificationPlatforms) : []
   });
-  try {
-    await notify("session-end", {
-      sessionId: input.session_id,
-      projectPath: input.cwd,
-      durationMs: metrics.duration_ms,
-      agentsSpawned: metrics.agents_spawned,
-      agentsCompleted: metrics.agents_completed,
-      modesUsed: metrics.modes_used,
-      reason: metrics.reason,
-      timestamp: metrics.ended_at,
-      profileName: process.env.OMC_NOTIFY_PROFILE
-    });
-  } catch {
+  if (shouldUseNewNotificationSystem) {
+    try {
+      await notify("session-end", {
+        sessionId: input.session_id,
+        projectPath: input.cwd,
+        durationMs: metrics.duration_ms,
+        agentsSpawned: metrics.agents_spawned,
+        agentsCompleted: metrics.agents_completed,
+        modesUsed: metrics.modes_used,
+        reason: metrics.reason,
+        timestamp: metrics.ended_at,
+        profileName
+      });
+    } catch {
+    }
   }
   try {
     const { removeSession: removeSession2, loadAllMappings: loadAllMappings2 } = await Promise.resolve().then(() => (init_session_registry(), session_registry_exports));
@@ -19539,6 +19573,8 @@ var init_session_end = __esm({
     path14 = __toESM(require("path"), 1);
     readline = __toESM(require("readline"), 1);
     init_callbacks();
+    init_auto_update();
+    init_config();
     init_notifications();
     init_bridge_manager();
     init_worktree_paths();
