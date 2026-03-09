@@ -31,10 +31,43 @@ export const CUSTOM_INTEGRATION_PRESETS: Record<string, PresetConfig> = {
     defaultConfig: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Versioned native envelope for clawhip/OpenClaw consumers; legacy fields remain
+      // at top-level for backward compatibility with existing integrations.
       bodyTemplate: JSON.stringify({
         event: '{{event}}',
+        schema: 'omc.openclaw-event',
+        schemaVersion: 1,
+        source: 'omc',
         instruction: 'Session {{sessionId}} {{event}} for project {{projectName}}',
         timestamp: '{{timestamp}}',
+        nativeEvent: {
+          schema: 'omc.native-event',
+          version: 1,
+          name: '{{nativeEvent}}',
+          emittedAt: '{{timestamp}}',
+          session: {
+            id: '{{sessionId}}',
+            name: '{{sessionId}}',
+            tmuxSession: '{{tmuxSession}}'
+          },
+          repo: {
+            projectPath: '{{projectPath}}',
+            projectName: '{{projectName}}',
+            branch: '{{branch}}',
+            issueNumber: '{{issueNumber}}',
+            prNumber: '{{prNumber}}',
+            prUrl: '{{prUrl}}'
+          },
+          tool: {
+            name: '{{toolName}}',
+            command: '{{command}}'
+          },
+          error: {
+            summary: '{{errorSummary}}',
+            retryCount: '{{retryCount}}'
+          },
+          reason: '{{reason}}'
+        },
         context: {
           projectPath: '{{projectPath}}',
           projectName: '{{projectName}}',
