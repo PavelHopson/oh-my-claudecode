@@ -17935,13 +17935,16 @@ function getAllServers() {
 
 // src/tools/lsp/client.ts
 var DEFAULT_LSP_REQUEST_TIMEOUT_MS = (() => {
-  const env = process.env.OMC_LSP_TIMEOUT_MS;
-  if (env) {
-    const parsed = parseInt(env, 10);
-    if (!isNaN(parsed) && parsed > 0) return parsed;
-  }
-  return 15e3;
+  return readPositiveIntEnv("OMC_LSP_TIMEOUT_MS", 15e3);
 })();
+function readPositiveIntEnv(name, fallback) {
+  const env = process.env[name];
+  if (!env) {
+    return fallback;
+  }
+  const parsed = parseInt(env, 10);
+  return !isNaN(parsed) && parsed > 0 ? parsed : fallback;
+}
 function fileUri(filePath) {
   return (0, import_url.pathToFileURL)((0, import_path2.resolve)(filePath)).href;
 }
@@ -18391,12 +18394,13 @@ ${content}`;
     });
   }
 };
-var IDLE_TIMEOUT_MS = 5 * 60 * 1e3;
-var IDLE_CHECK_INTERVAL_MS = 60 * 1e3;
+var IDLE_TIMEOUT_MS = readPositiveIntEnv("OMC_LSP_IDLE_TIMEOUT_MS", 5 * 60 * 1e3);
+var IDLE_CHECK_INTERVAL_MS = readPositiveIntEnv("OMC_LSP_IDLE_CHECK_INTERVAL_MS", 60 * 1e3);
 var LspClientManager = class {
   clients = /* @__PURE__ */ new Map();
   lastUsed = /* @__PURE__ */ new Map();
   inFlightCount = /* @__PURE__ */ new Map();
+  idleDeadlines = /* @__PURE__ */ new Map();
   idleTimer = null;
   constructor() {
     this.startIdleCheck();
@@ -18409,6 +18413,14 @@ var LspClientManager = class {
    */
   registerCleanupHandlers() {
     const forceKillAll = () => {
+      if (this.idleTimer) {
+        clearInterval(this.idleTimer);
+        this.idleTimer = null;
+      }
+      for (const timer of this.idleDeadlines.values()) {
+        clearTimeout(timer);
+      }
+      this.idleDeadlines.clear();
       for (const client of this.clients.values()) {
         try {
           client.forceKill();
@@ -18421,10 +18433,7 @@ var LspClientManager = class {
     };
     process.on("exit", forceKillAll);
     for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"]) {
-      process.on(sig, () => {
-        forceKillAll();
-        process.exit(0);
-      });
+      process.on(sig, forceKillAll);
     }
   }
   /**
@@ -18447,7 +18456,7 @@ var LspClientManager = class {
         throw error2;
       }
     }
-    this.lastUsed.set(key, Date.now());
+    this.touchClient(key);
     return client;
   }
   /**
@@ -18472,7 +18481,7 @@ var LspClientManager = class {
         throw error2;
       }
     }
-    this.lastUsed.set(key, Date.now());
+    this.touchClient(key);
     this.inFlightCount.set(key, (this.inFlightCount.get(key) || 0) + 1);
     try {
       return await fn(client);
@@ -18483,8 +18492,31 @@ var LspClientManager = class {
       } else {
         this.inFlightCount.set(key, count);
       }
-      this.lastUsed.set(key, Date.now());
+      this.touchClient(key);
     }
+  }
+  touchClient(key) {
+    this.lastUsed.set(key, Date.now());
+    this.scheduleIdleDeadline(key);
+  }
+  scheduleIdleDeadline(key) {
+    this.clearIdleDeadline(key);
+    const timer = setTimeout(() => {
+      this.idleDeadlines.delete(key);
+      this.evictClientIfIdle(key);
+    }, IDLE_TIMEOUT_MS);
+    if (typeof timer === "object" && "unref" in timer) {
+      timer.unref();
+    }
+    this.idleDeadlines.set(key, timer);
+  }
+  clearIdleDeadline(key) {
+    const timer = this.idleDeadlines.get(key);
+    if (!timer) {
+      return;
+    }
+    clearTimeout(timer);
+    this.idleDeadlines.delete(key);
   }
   /**
    * Find the workspace root for a file
@@ -18524,21 +18556,35 @@ var LspClientManager = class {
    * Clients with in-flight requests are never evicted.
    */
   evictIdleClients() {
-    const now = Date.now();
-    for (const [key, lastUsedTime] of this.lastUsed.entries()) {
-      if (now - lastUsedTime > IDLE_TIMEOUT_MS) {
-        if ((this.inFlightCount.get(key) || 0) > 0) {
-          continue;
-        }
-        const client = this.clients.get(key);
-        if (client) {
-          client.disconnect().catch(() => {
-          });
-          this.clients.delete(key);
-          this.lastUsed.delete(key);
-          this.inFlightCount.delete(key);
-        }
+    for (const key of this.lastUsed.keys()) {
+      this.evictClientIfIdle(key);
+    }
+  }
+  evictClientIfIdle(key) {
+    const lastUsedTime = this.lastUsed.get(key);
+    if (lastUsedTime === void 0) {
+      this.clearIdleDeadline(key);
+      return;
+    }
+    const idleFor = Date.now() - lastUsedTime;
+    if (idleFor <= IDLE_TIMEOUT_MS) {
+      if (!this.idleDeadlines.has(key)) {
+        this.scheduleIdleDeadline(key);
       }
+      return;
+    }
+    if ((this.inFlightCount.get(key) || 0) > 0) {
+      this.scheduleIdleDeadline(key);
+      return;
+    }
+    const client = this.clients.get(key);
+    this.clearIdleDeadline(key);
+    this.clients.delete(key);
+    this.lastUsed.delete(key);
+    this.inFlightCount.delete(key);
+    if (client) {
+      client.disconnect().catch(() => {
+      });
     }
   }
   /**
@@ -18551,6 +18597,10 @@ var LspClientManager = class {
       clearInterval(this.idleTimer);
       this.idleTimer = null;
     }
+    for (const timer of this.idleDeadlines.values()) {
+      clearTimeout(timer);
+    }
+    this.idleDeadlines.clear();
     const entries = Array.from(this.clients.entries());
     const results = await Promise.allSettled(
       entries.map(([, client]) => client.disconnect())
@@ -18579,7 +18629,9 @@ var LspClientManager = class {
     this.evictIdleClients();
   }
 };
-var lspClientManager = new LspClientManager();
+var LSP_CLIENT_MANAGER_KEY = "__omcLspClientManager";
+var globalWithLspClientManager = globalThis;
+var lspClientManager = globalWithLspClientManager[LSP_CLIENT_MANAGER_KEY] || (globalWithLspClientManager[LSP_CLIENT_MANAGER_KEY] = new LspClientManager());
 async function disconnectAll() {
   return lspClientManager.disconnectAll();
 }
@@ -25059,25 +25111,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 });
+var gracefulShutdownPromise = null;
 async function gracefulShutdown(signal) {
-  const forceExitTimer = setTimeout(() => process.exit(1), 5e3);
-  forceExitTimer.unref();
-  console.error(`OMC MCP Server: received ${signal}, disconnecting LSP servers...`);
-  try {
-    await disconnectAll();
-  } catch {
+  if (gracefulShutdownPromise) {
+    return gracefulShutdownPromise;
   }
-  try {
-    await server.close();
-  } catch {
-  }
-  process.exit(0);
+  gracefulShutdownPromise = (async () => {
+    const forceExitTimer = setTimeout(() => process.exit(1), 5e3);
+    forceExitTimer.unref();
+    console.error(`OMC MCP Server: received ${signal}, disconnecting LSP servers...`);
+    try {
+      await disconnectAll();
+    } catch {
+    }
+    try {
+      await server.close();
+    } catch {
+    }
+    process.exit(0);
+  })();
+  return gracefulShutdownPromise;
 }
 process.on("SIGTERM", () => {
   gracefulShutdown("SIGTERM");
 });
 process.on("SIGINT", () => {
   gracefulShutdown("SIGINT");
+});
+process.once("disconnect", () => {
+  gracefulShutdown("parent disconnect");
+});
+process.stdin?.once("end", () => {
+  gracefulShutdown("stdin end");
+});
+process.stdin?.once("close", () => {
+  gracefulShutdown("stdin close");
 });
 async function main() {
   const transport = new StdioServerTransport();

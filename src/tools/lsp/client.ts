@@ -14,13 +14,18 @@ import { getServerForFile, commandExists } from './servers.js';
 
 /** Default timeout (ms) for LSP requests. Override with OMC_LSP_TIMEOUT_MS env var. */
 export const DEFAULT_LSP_REQUEST_TIMEOUT_MS: number = (() => {
-  const env = process.env.OMC_LSP_TIMEOUT_MS;
-  if (env) {
-    const parsed = parseInt(env, 10);
-    if (!isNaN(parsed) && parsed > 0) return parsed;
-  }
-  return 15_000;
+  return readPositiveIntEnv('OMC_LSP_TIMEOUT_MS', 15_000);
 })();
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const env = process.env[name];
+  if (!env) {
+    return fallback;
+  }
+
+  const parsed = parseInt(env, 10);
+  return !isNaN(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 /** Convert a file path to a valid file:// URI (cross-platform) */
 function fileUri(filePath: string): string {
@@ -664,18 +669,19 @@ export class LspClient {
 }
 
 /** Idle timeout: disconnect LSP clients unused for 5 minutes */
-export const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+export const IDLE_TIMEOUT_MS = readPositiveIntEnv('OMC_LSP_IDLE_TIMEOUT_MS', 5 * 60 * 1000);
 /** Check for idle clients every 60 seconds */
-export const IDLE_CHECK_INTERVAL_MS = 60 * 1000;
+export const IDLE_CHECK_INTERVAL_MS = readPositiveIntEnv('OMC_LSP_IDLE_CHECK_INTERVAL_MS', 60 * 1000);
 
 /**
  * Client manager - maintains a pool of LSP clients per workspace/server
  * with idle eviction to free resources and in-flight request protection.
  */
-class LspClientManager {
+export class LspClientManager {
   private clients = new Map<string, LspClient>();
   private lastUsed = new Map<string, number>();
   private inFlightCount = new Map<string, number>();
+  private idleDeadlines = new Map<string, ReturnType<typeof setTimeout>>();
   private idleTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -690,6 +696,14 @@ class LspClientManager {
    */
   private registerCleanupHandlers(): void {
     const forceKillAll = () => {
+      if (this.idleTimer) {
+        clearInterval(this.idleTimer);
+        this.idleTimer = null;
+      }
+      for (const timer of this.idleDeadlines.values()) {
+        clearTimeout(timer);
+      }
+      this.idleDeadlines.clear();
       for (const client of this.clients.values()) {
         try {
           client.forceKill();
@@ -736,8 +750,7 @@ class LspClientManager {
       }
     }
 
-    // Track last-used timestamp
-    this.lastUsed.set(key, Date.now());
+    this.touchClient(key);
 
     return client;
   }
@@ -768,7 +781,7 @@ class LspClientManager {
     }
 
     // Touch timestamp and increment in-flight counter
-    this.lastUsed.set(key, Date.now());
+    this.touchClient(key);
     this.inFlightCount.set(key, (this.inFlightCount.get(key) || 0) + 1);
 
     try {
@@ -781,8 +794,38 @@ class LspClientManager {
       } else {
         this.inFlightCount.set(key, count);
       }
-      this.lastUsed.set(key, Date.now());
+      this.touchClient(key);
     }
+  }
+
+  private touchClient(key: string): void {
+    this.lastUsed.set(key, Date.now());
+    this.scheduleIdleDeadline(key);
+  }
+
+  private scheduleIdleDeadline(key: string): void {
+    this.clearIdleDeadline(key);
+
+    const timer = setTimeout(() => {
+      this.idleDeadlines.delete(key);
+      this.evictClientIfIdle(key);
+    }, IDLE_TIMEOUT_MS);
+
+    if (typeof timer === 'object' && 'unref' in timer) {
+      timer.unref();
+    }
+
+    this.idleDeadlines.set(key, timer);
+  }
+
+  private clearIdleDeadline(key: string): void {
+    const timer = this.idleDeadlines.get(key);
+    if (!timer) {
+      return;
+    }
+
+    clearTimeout(timer);
+    this.idleDeadlines.delete(key);
   }
 
   /**
@@ -831,23 +874,43 @@ class LspClientManager {
    * Clients with in-flight requests are never evicted.
    */
   private evictIdleClients(): void {
-    const now = Date.now();
-    for (const [key, lastUsedTime] of this.lastUsed.entries()) {
-      if (now - lastUsedTime > IDLE_TIMEOUT_MS) {
-        // Skip eviction if there are in-flight requests
-        if ((this.inFlightCount.get(key) || 0) > 0) {
-          continue;
-        }
-        const client = this.clients.get(key);
-        if (client) {
-          client.disconnect().catch(() => {
-            // Ignore disconnect errors during eviction
-          });
-          this.clients.delete(key);
-          this.lastUsed.delete(key);
-          this.inFlightCount.delete(key);
-        }
+    for (const key of this.lastUsed.keys()) {
+      this.evictClientIfIdle(key);
+    }
+  }
+
+  private evictClientIfIdle(key: string): void {
+    const lastUsedTime = this.lastUsed.get(key);
+    if (lastUsedTime === undefined) {
+      this.clearIdleDeadline(key);
+      return;
+    }
+
+    const idleFor = Date.now() - lastUsedTime;
+    if (idleFor <= IDLE_TIMEOUT_MS) {
+      const hasDeadline = this.idleDeadlines.has(key);
+      if (!hasDeadline) {
+        this.scheduleIdleDeadline(key);
       }
+      return;
+    }
+
+    // Skip eviction if there are in-flight requests
+    if ((this.inFlightCount.get(key) || 0) > 0) {
+      this.scheduleIdleDeadline(key);
+      return;
+    }
+
+    const client = this.clients.get(key);
+    this.clearIdleDeadline(key);
+    this.clients.delete(key);
+    this.lastUsed.delete(key);
+    this.inFlightCount.delete(key);
+
+    if (client) {
+      client.disconnect().catch(() => {
+        // Ignore disconnect errors during eviction
+      });
     }
   }
 
@@ -861,6 +924,11 @@ class LspClientManager {
       clearInterval(this.idleTimer);
       this.idleTimer = null;
     }
+
+    for (const timer of this.idleDeadlines.values()) {
+      clearTimeout(timer);
+    }
+    this.idleDeadlines.clear();
 
     const entries = Array.from(this.clients.entries());
     const results = await Promise.allSettled(
@@ -898,8 +966,17 @@ class LspClientManager {
   }
 }
 
-// Export a singleton instance
-export const lspClientManager = new LspClientManager();
+const LSP_CLIENT_MANAGER_KEY = '__omcLspClientManager';
+type GlobalWithLspClientManager = typeof globalThis & {
+  [LSP_CLIENT_MANAGER_KEY]?: LspClientManager;
+};
+
+// Export a process-global singleton instance. This protects against duplicate
+// manager instances if the module is loaded more than once in the same process
+// (for example after module resets in tests or bundle indirection).
+const globalWithLspClientManager = globalThis as GlobalWithLspClientManager;
+export const lspClientManager = globalWithLspClientManager[LSP_CLIENT_MANAGER_KEY]
+  ?? (globalWithLspClientManager[LSP_CLIENT_MANAGER_KEY] = new LspClientManager());
 
 /**
  * Disconnect all LSP clients and free resources.

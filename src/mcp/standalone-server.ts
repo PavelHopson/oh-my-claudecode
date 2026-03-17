@@ -24,6 +24,7 @@ import { stateTools } from '../tools/state-tools.js';
 import { notepadTools } from '../tools/notepad-tools.js';
 import { memoryTools } from '../tools/memory-tools.js';
 import { traceTools } from '../tools/trace-tools.js';
+import { registerStandaloneShutdownHandlers } from './standalone-shutdown.js';
 import { z } from 'zod';
 
 // Tool interface matching our tool definitions
@@ -211,8 +212,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   process.exit(0);
 }
 
-process.on('SIGTERM', () => { gracefulShutdown('SIGTERM'); });
-process.on('SIGINT', () => { gracefulShutdown('SIGINT'); });
+registerStandaloneShutdownHandlers({
+  onShutdown: gracefulShutdown,
+});
 
 // Start the server
 async function main() {
