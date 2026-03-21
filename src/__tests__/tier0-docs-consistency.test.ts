@@ -94,4 +94,15 @@ describe('Tier-0 contract docs consistency', () => {
     expect(benchmarkRunner).not.toContain('claude-sonnet-4-20250514');
     expect(resultsReadme).toContain('Claude Sonnet 4.6');
   });
+
+  it('removes dead package build aliases and keeps seminar demo model guidance current', () => {
+    const packageJson = JSON.parse(readProjectFile('package.json')) as { scripts?: Record<string, string> };
+    const seminarDemo = readProjectFile('seminar', 'demos', 'demo-0-live-audience.md');
+
+    expect(packageJson.scripts).not.toHaveProperty('build:codex');
+    expect(packageJson.scripts).not.toHaveProperty('build:gemini');
+    expect(seminarDemo).toContain('# 빠른 모델 (Sonnet 4.6)');
+    expect(seminarDemo).toContain('export OMC_MODEL=anthropic/claude-sonnet-4-6');
+    expect(seminarDemo).not.toContain('anthropic/claude-sonnet-4-5');
+  });
 });
