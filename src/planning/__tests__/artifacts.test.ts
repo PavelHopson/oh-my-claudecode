@@ -234,6 +234,37 @@ describe("planning/artifacts", () => {
       expect(isPlanningComplete(readPlanningArtifacts(testDir))).toBe(true);
     });
 
+    it("treats required heading matches as case-insensitive", () => {
+      writeFileSync(
+        join(plansDir, "prd-feature.md"),
+        [
+          "# PRD",
+          "",
+          "## ACCEPTANCE CRITERIA",
+          "- done",
+          "",
+          "## requirement coverage map",
+          "- req -> impl",
+          "",
+        ].join("\n"),
+      );
+      writeFileSync(
+        join(plansDir, "test-spec-feature.md"),
+        [
+          "# Test Spec",
+          "",
+          "## UNIT COVERAGE",
+          "- unit",
+          "",
+          "## verification mapping",
+          "- verify",
+          "",
+        ].join("\n"),
+      );
+      expect(isPlanningComplete(readPlanningArtifacts(testDir))).toBe(true);
+    });
+
+
     it("uses the latest artifacts when older ones were valid", () => {
       writeValidArtifacts("prd-aaa.md", "test-spec-aaa.md");
       writeFileSync(
