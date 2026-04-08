@@ -8,7 +8,17 @@
  */
 
 import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { readStdin } from './lib/stdin.mjs';
+
+// Review mode: skip in 'solo' mode
+const reviewModePath = join(process.cwd(), '.claude', 'review-mode.txt');
+const reviewMode = existsSync(reviewModePath) ? readFileSync(reviewModePath, 'utf-8').trim() : 'full';
+if (reviewMode === 'solo') {
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(0);
+}
 
 const SECRET_PATTERNS = [
   /api[_-]?key\s*=\s*["'][^"']{8,}/i,
