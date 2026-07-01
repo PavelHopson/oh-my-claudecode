@@ -19,6 +19,21 @@ _Don't learn Claude Code. Just use OMC._
 
 ---
 
+## Eclipse fork notes
+
+Source: [Eclipse Library · July 2026 project integration](https://library.eclipse-forge.ru/#guide/july-2026-project-integration).
+
+### Loopy audit backlog
+
+Use **Loopy** as a reference for auditing skills, MCP servers, and automation loops before they become part of the Eclipse agent workspace.
+
+- Detect duplicate skills and overlapping responsibilities.
+- Flag risky tool access, suspicious actions, and broken loops.
+- Produce an install/audit report before adding new community skills.
+- Pair with the existing SkillSpector-style review flow instead of replacing it.
+
+---
+
 ## Core Maintainers
 
 | Role | Name | GitHub |
