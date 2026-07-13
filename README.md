@@ -32,6 +32,17 @@ Use **Loopy** as a reference for auditing skills, MCP servers, and automation lo
 - Produce an install/audit report before adding new community skills.
 - Pair with the existing SkillSpector-style review flow instead of replacing it.
 
+### Local model runtime backlog
+
+Use **Colibri** as a reference for local model runtime planning, not as a default runtime.
+
+- Add a future provider preflight before heavy Team/autopilot runs.
+- Warn when a local model is technically runnable but too slow for interactive coding.
+- Record provider readiness in HUD/session replay.
+- Keep huge local model downloads behind explicit R&D approval.
+
+Details: [docs/LOCAL-MODEL-RUNTIME-RD.md](docs/LOCAL-MODEL-RUNTIME-RD.md).
+
 ---
 
 ## Core Maintainers

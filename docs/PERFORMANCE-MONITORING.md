@@ -346,6 +346,16 @@ Track Claude's performance across standard benchmarks:
 | Feature implementation | Sonnet | Medium |
 | Architecture decisions | Opus | Highest |
 
+### 2.1 Preflight local runtimes before heavy workflows
+
+For local or OpenAI-compatible runtimes, do not assume that "runs locally" means "good for interactive agent work".
+The Eclipse fork tracks a Colibri-inspired provider preflight idea in [LOCAL-MODEL-RUNTIME-RD.md](./LOCAL-MODEL-RUNTIME-RD.md):
+
+- verify provider reachability before Team/autopilot runs
+- show latency tier and hardware risk in the HUD
+- warn before spawning multiple workers on a slow or disk-bound local model
+- keep huge model downloads behind explicit R&D approval
+
 ### 3. Enable Session Replay for Complex Tasks
 
 Session replay is automatically enabled. Review replays after complex workflows:
