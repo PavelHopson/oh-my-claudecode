@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { dirname, join } from 'path';
 
@@ -496,6 +496,22 @@ export function syncUnifiedMcpRegistryTargets(
       codexChanged,
     },
   };
+}
+
+export function mergeUnifiedMcpRegistryEntries(
+  entries: UnifiedMcpRegistry,
+): UnifiedMcpRegistrySyncResult {
+  const registryPath = getUnifiedMcpRegistryPath();
+  const existingPath = getUnifiedMcpRegistryPathCandidates().find(candidate => existsSync(candidate));
+  const existing = existingPath ? loadRegistryFromDisk(existingPath) : {};
+  const merged = normalizeRegistry({ ...existing, ...entries });
+
+  ensureParentDir(registryPath);
+  const tempPath = `${registryPath}.tmp.${process.pid}`;
+  writeFileSync(tempPath, `${JSON.stringify(merged, null, 2)}\n`, { encoding: 'utf-8', mode: 0o600 });
+  renameSync(tempPath, registryPath);
+
+  return syncUnifiedMcpRegistryTargets({}).result;
 }
 
 function readJsonObject(path: string): Record<string, unknown> {

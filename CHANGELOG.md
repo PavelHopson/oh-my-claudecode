@@ -1,3 +1,9 @@
+# Unreleased
+
+- Added `omc mcp-baseline`: version-pinned Context7 and workspace-scoped Filesystem presets, with an
+  opt-in GitHub read-only/lockdown preset. The command updates the unified Claude/Codex registry,
+  keeps tokens out of config, supports dry-run, and fails closed for missing workspace paths.
+
 # oh-my-claudecode v4.11.1: add gitStatus working-tree, add hostname element, cwd folder format
 
 ## Release Notes

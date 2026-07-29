@@ -8,6 +8,22 @@ level: 2
 
 Configure Model Context Protocol (MCP) servers to extend Claude Code's capabilities with external tools like web search, file system access, and GitHub integration.
 
+## Eclipse secure baseline
+
+Prefer the built-in baseline over hand-written `@latest` commands:
+
+```bash
+omc mcp-baseline --workspace /absolute/path/to/project --dry-run
+omc mcp-baseline --workspace /absolute/path/to/project
+# GitHub is opt-in because it requires a token and Docker:
+omc mcp-baseline --workspace /absolute/path/to/project --github
+```
+
+The baseline pins Context7 and Filesystem package versions, exposes exactly one existing workspace,
+and configures GitHub with read-only, lockdown, and limited toolsets. It never writes a literal token.
+After sync, run `omc doctor conflicts` and manually inspect tool descriptions for prompt injection or
+unexpected changes. Do not approve an MCP server only because its publisher is trusted.
+
 ## Overview
 
 MCP servers provide additional tools that Claude Code agents can use. This skill helps you configure popular MCP servers using the `claude mcp add` command-line interface.

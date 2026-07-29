@@ -43,6 +43,7 @@ import {
   waitDetectCommand
 } from './commands/wait.js';
 import { doctorConflictsCommand } from './commands/doctor-conflicts.js';
+import { mcpBaselineCommand } from './commands/mcp-baseline.js';
 import { sessionSearchCommand } from './commands/session-search.js';
 import { teamCommand } from './commands/team.js';
 import { ralphthonCommand } from './commands/ralphthon.js';
@@ -1157,6 +1158,16 @@ Examples:
   .action(async (options) => {
     const exitCode = await doctorConflictsCommand(options);
     process.exit(exitCode);
+  });
+
+program
+  .command('mcp-baseline')
+  .description('Install version-pinned Context7 and workspace-scoped Filesystem MCP presets')
+  .requiredOption('-w, --workspace <path>', 'Existing workspace directory exposed to Filesystem MCP')
+  .option('--github', 'Also add the official GitHub MCP server in read-only + lockdown mode')
+  .option('--dry-run', 'Print the registry entries without writing config files')
+  .action((options) => {
+    mcpBaselineCommand(options);
   });
 
 /**
