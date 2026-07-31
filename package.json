@@ -69,7 +69,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.0",
     "@ast-grep/napi": "^0.31.0",
-    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/better-sqlite3": "^7.6.13",
     "ajv": "^8.17.1",
     "better-sqlite3": "^12.6.2",
@@ -86,14 +86,14 @@
     "@types/node": "^22.19.7",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
-    "@vitest/ui": "^4.0.17",
+    "@vitest/ui": "^4.1.10",
     "esbuild": "^0.27.2",
     "eslint": "^9.17.0",
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.53.0",
-    "vitest": "^4.0.17"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20.0.0"
