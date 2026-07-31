@@ -112,7 +112,7 @@ export async function parseTranscript(
     return result;
   }
 
-  let cacheKey: string | null = null;
+  let cacheKey: string;
 
   try {
     const stat = statSync(transcriptPath);
@@ -133,7 +133,7 @@ export async function parseTranscript(
     outputTokens: 0,
     seenUsage: false,
   };
-  let sessionTotalsReliable = false;
+  let sessionTotalsReliable: boolean;
   const observedSessionIds = new Set<string>();
 
   try {

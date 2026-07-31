@@ -76,7 +76,7 @@ describe('BUG 1: session summary spawn guard with PID tracking', () => {
 
   it('PID liveness check prevents second spawn when process is alive', () => {
     // Simulate the PID tracking logic with the current process (alive)
-    let pid: number | null = process.pid;
+    const pid: number | null = process.pid;
     let spawnAllowed = true;
 
     if (pid !== null) {
@@ -85,7 +85,7 @@ describe('BUG 1: session summary spawn guard with PID tracking', () => {
         // Process is still alive — skip spawn
         spawnAllowed = false;
       } catch {
-        pid = null;
+        // A failed liveness probe leaves spawning enabled.
       }
     }
 
@@ -113,7 +113,7 @@ describe('BUG 1: session summary spawn guard with PID tracking', () => {
   });
 
   it('null PID allows spawn (no previous process tracked)', () => {
-    let pid: number | null = null;
+    const pid: number | null = null;
     let spawnAllowed = true;
 
     if (pid !== null) {
@@ -121,7 +121,7 @@ describe('BUG 1: session summary spawn guard with PID tracking', () => {
         process.kill(pid, 0);
         spawnAllowed = false;
       } catch {
-        pid = null;
+        // No tracked PID to clear in this branch.
       }
     }
 

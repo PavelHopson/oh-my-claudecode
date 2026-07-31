@@ -267,7 +267,7 @@ describe("reply-listener", () => {
       const pid = 99999; // Non-existent process
 
       // isProcessAlive would return false
-      let isRunning = false;
+      let isRunning: boolean;
       try {
         process.kill(pid, 0);
         isRunning = true;

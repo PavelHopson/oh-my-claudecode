@@ -116,6 +116,9 @@ describe('HUD marketplace resolution', () => {
       : join(npmPrefix, 'lib', 'node_modules');
     const npmPackageRoot = join(npmRoot, 'oh-my-claude-sisyphus');
     const npmHudDir = join(npmPackageRoot, 'dist', 'hud');
+    const inheritedEnvWithoutNpmPrefix = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => key.toLowerCase() !== 'npm_config_prefix'),
+    );
     mkdirSync(npmHudDir, { recursive: true });
     writeFileSync(join(npmPackageRoot, 'package.json'), '{"type":"module"}\n');
     writeFileSync(
@@ -136,17 +139,19 @@ describe('HUD marketplace resolution', () => {
     const hudScriptPath = join(configDir, 'hud', 'omc-hud.mjs');
     expect(existsSync(hudScriptPath)).toBe(true);
 
-    execFileSync(process.execPath, [hudScriptPath], {
+    const hudOutput = execFileSync(process.execPath, [hudScriptPath], {
       cwd: outsideCwd,
       env: {
-        ...process.env,
+        ...inheritedEnvWithoutNpmPrefix,
         CLAUDE_CONFIG_DIR: configDir,
         HOME: fakeHome,
         npm_config_prefix: npmPrefix,
       },
       stdio: 'pipe',
+      encoding: 'utf-8',
     });
 
+    expect(existsSync(sentinelPath), hudOutput).toBe(true);
     expect(readFileSync(sentinelPath, 'utf-8')).toBe('global-prefix-loaded');
   });
 

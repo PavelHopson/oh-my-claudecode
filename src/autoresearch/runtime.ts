@@ -176,7 +176,7 @@ function readGit(repoPath: string, args: string[]): string {
       : err.stderr instanceof Buffer
         ? err.stderr.toString('utf-8').trim()
         : '';
-    throw new Error(stderr || `git ${args.join(' ')} failed`);
+    throw new Error(stderr || `git ${args.join(' ')} failed`, { cause: error });
   }
 }
 

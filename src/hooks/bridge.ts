@@ -1523,7 +1523,6 @@ function processPreToolUse(input: HookInput): HookOutput {
   const preToolMessages = enforcementResult.message
     ? [enforcementResult.message]
     : [];
-  let modifiedToolInput: Record<string, unknown> | undefined;
 
   // Check blocking BEFORE recording progress — otherwise a denied tool
   // (e.g. Edit) that also matches a prerequisite would have its progress
@@ -1719,7 +1718,7 @@ function processPreToolUse(input: HookInput): HookOutput {
   // Warn about pkill -f self-termination risk (issue #210)
   // Matches: pkill -f, pkill -9 -f, pkill --full, etc.
   if (input.toolName === "Bash") {
-    const effectiveBashInput = (modifiedToolInput ?? input.toolInput) as
+    const effectiveBashInput = input.toolInput as
       | { command?: string }
       | undefined;
     const command = effectiveBashInput?.command ?? "";
@@ -1736,7 +1735,6 @@ function processPreToolUse(input: HookInput): HookOutput {
           '  - `kill $(pgrep -f "pattern")` (pgrep does not kill itself)',
           "Proceeding anyway, but the command may kill this shell session.",
         ].join("\n"),
-        ...(modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}),
       };
     }
   }
@@ -1744,7 +1742,7 @@ function processPreToolUse(input: HookInput): HookOutput {
   // Background process guard - prevent forkbomb (issue #302)
   // Block new background tasks if limit is exceeded
   if (input.toolName === "Task" || input.toolName === "Bash") {
-    const toolInput = (modifiedToolInput ?? input.toolInput) as
+    const toolInput = input.toolInput as
       | {
           description?: string;
           subagent_type?: string;
@@ -1772,7 +1770,7 @@ function processPreToolUse(input: HookInput): HookOutput {
 
   // Track Task tool invocations for HUD display
   if (input.toolName === "Task") {
-    const toolInput = (modifiedToolInput ?? input.toolInput) as
+    const toolInput = input.toolInput as
       | {
           description?: string;
           subagent_type?: string;
@@ -1818,7 +1816,6 @@ function processPreToolUse(input: HookInput): HookOutput {
       return {
         continue: true,
         ...(combined ? { message: combined } : {}),
-        ...(modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}),
       };
     }
   }
@@ -1839,7 +1836,6 @@ function processPreToolUse(input: HookInput): HookOutput {
     ...(preToolMessages.length > 0
       ? { message: preToolMessages.join("\n\n") }
       : {}),
-    ...(modifiedToolInput ? { modifiedInput: modifiedToolInput } : {}),
   };
 }
 

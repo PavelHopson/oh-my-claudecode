@@ -7,7 +7,7 @@
 import { execSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
-import { dim, cyan, green, yellow, red } from '../colors.js';
+import { dim, cyan, green, red } from '../colors.js';
 
 const CACHE_TTL_MS = 30_000;
 
@@ -60,7 +60,7 @@ export function getGitRepoName(cwd?: string): string | null {
     return cached.value;
   }
 
-  let result: string | null = null;
+  let result: string | null;
   try {
     const url = execSync('git remote get-url origin', {
       cwd,
@@ -99,7 +99,7 @@ export function getGitBranch(cwd?: string): string | null {
     return cached.value;
   }
 
-  let result: string | null = null;
+  let result: string | null;
   try {
     const branch = execSync('git branch --show-current', {
       cwd,
@@ -211,7 +211,7 @@ export function getGitStatusCounts(cwd?: string): GitStatusCounts | null {
     return cached.value;
   }
 
-  let result: GitStatusCounts | null = null;
+  let result: GitStatusCounts | null;
   try {
     const output = execSync('git status --porcelain -b', {
       cwd,

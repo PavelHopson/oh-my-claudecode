@@ -69,10 +69,6 @@ describe('CLI win32 platform warning (#923)', () => {
     vi.mocked(spawnSync).mockReturnValue({ status: 1 } as ReturnType<typeof spawnSync>);
 
     const { warnIfWin32 } = await import('../cli/win32-warning.js');
-    let continued = false;
-    warnIfWin32();
-    continued = true;
-
-    expect(continued).toBe(true);
+    expect(() => warnIfWin32()).not.toThrow();
   });
 });

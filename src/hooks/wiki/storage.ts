@@ -330,7 +330,7 @@ export function appendLogUnsafe(root: string, entry: WikiLogEntry): void {
     `- **Pages:** ${entry.pagesAffected.join(', ') || 'none'}\n` +
     `- **Summary:** ${entry.summary}\n\n`;
 
-  let existing = '';
+  let existing: string;
   if (existsSync(logPath)) {
     existing = readFileSync(logPath, 'utf-8');
   } else {

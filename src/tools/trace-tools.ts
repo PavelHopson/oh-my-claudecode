@@ -74,7 +74,7 @@ function formatEventType(event: string): string {
 function formatTimelineEvent(event: ReplayEvent): string {
   const time = `${event.t.toFixed(1)}s`.padStart(7);
   const type = formatEventType(event.event);
-  let detail = '';
+  let detail: string;
 
   switch (event.event) {
     case 'agent_start':

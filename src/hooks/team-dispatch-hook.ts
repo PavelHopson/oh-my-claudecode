@@ -111,7 +111,9 @@ async function withDispatchLock<T>(teamDirPath: string, fn: () => Promise<T>): P
           continue;
         }
       } catch { /* best effort */ }
-      if (Date.now() > deadline) throw new Error(`Timed out acquiring dispatch lock for ${teamDirPath}`);
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out acquiring dispatch lock for ${teamDirPath}`, { cause: error });
+      }
       await new Promise((r) => setTimeout(r, 25));
     }
   }
@@ -155,7 +157,9 @@ async function withMailboxLock<T>(teamDirPath: string, workerName: string, fn: (
           continue;
         }
       } catch { /* best effort */ }
-      if (Date.now() > deadline) throw new Error(`Timed out acquiring mailbox lock for ${teamDirPath}/${workerName}`);
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out acquiring mailbox lock for ${teamDirPath}/${workerName}`, { cause: error });
+      }
       await new Promise((r) => setTimeout(r, 25));
     }
   }
@@ -558,7 +562,7 @@ export async function drainPendingTeamDispatch(options: {
   const teamRoot = join(stateDir, 'team');
   if (!existsSync(teamRoot)) return { processed: 0, skipped: 0, failed: 0 };
 
-  let teams: string[] = [];
+  let teams: string[];
   try {
     teams = await readdir(teamRoot);
   } catch {
@@ -655,14 +659,12 @@ export async function drainPendingTeamDispatch(options: {
         const result = await injector(request, config, resolve(cwd));
         if (issueKey && issueCooldownMs > 0) {
           issueCooldownByIssue[issueKey] = Date.now();
-          mutated = true;
         }
         if (triggerKey && triggerCooldownMs > 0) {
           triggerCooldownByKey[triggerKey] = {
             at: Date.now(),
             last_request_id: safeString(request.request_id).trim(),
           };
-          mutated = true;
         }
         const nowIso = new Date().toISOString();
         request.attempt_count = Number.isFinite(request.attempt_count) ? Math.max(0, request.attempt_count + 1) : 1;

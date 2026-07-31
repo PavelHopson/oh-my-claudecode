@@ -710,7 +710,7 @@ function withFileLock<R>(filePath: string, fn: () => R): R {
       }
 
       if (Date.now() >= deadline) {
-        throw new Error(`Timed out acquiring state lock: ${lockPath}`);
+        throw new Error(`Timed out acquiring state lock: ${lockPath}`, { cause: err });
       }
 
       // Brief pause before retry (sync spin intentional — this is a sync lock function)

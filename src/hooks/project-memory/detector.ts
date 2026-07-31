@@ -56,7 +56,6 @@ export async function detectProjectEnvironment(projectRoot: string): Promise<Pro
 async function detectTechStack(projectRoot: string): Promise<TechStack> {
   const languages: LanguageDetection[] = [];
   const frameworks: FrameworkDetection[] = [];
-  let packageManager: string | null = null;
   let runtime: string | null = null;
 
   // Check for config files
@@ -94,7 +93,7 @@ async function detectTechStack(projectRoot: string): Promise<TechStack> {
   // Prioritize lockfile-based package managers over generic ones
   const lockfileManagers = ['pnpm', 'yarn', 'cargo', 'poetry', 'pipenv', 'bundler', 'composer', 'go'];
   const lockfileMatch = packageManagerHints.find(pm => lockfileManagers.includes(pm));
-  packageManager = lockfileMatch || packageManagerHints[0] || null;
+  const packageManager = lockfileMatch || packageManagerHints[0] || null;
 
   // Detect frameworks from package.json
   const packageJsonPath = path.join(projectRoot, 'package.json');
@@ -311,7 +310,6 @@ async function detectStructure(projectRoot: string): Promise<ProjectStructure> {
   let isMonorepo = false;
   const workspaces: string[] = [];
   const mainDirectories: string[] = [];
-  let gitBranches: GitBranchPattern | null = null;
 
   // Check for monorepo
   const packageJsonPath = path.join(projectRoot, 'package.json');
@@ -350,7 +348,7 @@ async function detectStructure(projectRoot: string): Promise<ProjectStructure> {
   }
 
   // Detect git branch
-  gitBranches = await detectGitBranch(projectRoot);
+  const gitBranches = await detectGitBranch(projectRoot);
 
   return {
     isMonorepo,

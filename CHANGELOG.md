@@ -1,5 +1,8 @@
 # Unreleased
 
+- Cleared the remaining ESLint warnings by removing dead assignments and preserving wrapped error
+  causes. Stabilized the Windows test runner at two workers and made the global npm-prefix HUD test
+  robust to case-insensitive environment keys.
 - Completed the ESLint 10 migration and refreshed the TypeScript ESLint toolchain; both production
   and full dependency trees now report zero known vulnerabilities in the offline audit cache.
 - Registered the existing database reviewer, TypeScript reviewer, and refactor cleaner prompts in

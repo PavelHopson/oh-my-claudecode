@@ -517,7 +517,9 @@ function parseTeamApiArgs(args: string[]): {
         }
         input = parsed as Record<string, unknown>;
       } catch (error) {
-        throw new Error(`Invalid --input JSON: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Invalid --input JSON: ${error instanceof Error ? error.message : String(error)}`, {
+          cause: error,
+        });
       }
       i += 1;
       continue;
@@ -531,7 +533,9 @@ function parseTeamApiArgs(args: string[]): {
         }
         input = parsed as Record<string, unknown>;
       } catch (error) {
-        throw new Error(`Invalid --input JSON: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Invalid --input JSON: ${error instanceof Error ? error.message : String(error)}`, {
+          cause: error,
+        });
       }
       continue;
     }

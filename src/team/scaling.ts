@@ -115,7 +115,6 @@ export async function scaleUp(
 
     // Resolve the monotonic worker index counter
     let nextIndex = config.next_worker_index ?? (currentCount + 1);
-    const initialNextIndex = nextIndex;
     const addedWorkers: WorkerInfo[] = [];
 
     const rollbackScaleUp = async (error: string, paneId?: string): Promise<ScaleError> => {

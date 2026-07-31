@@ -136,6 +136,7 @@ async function withDispatchLock<T>(teamName: string, cwd: string, fn: () => Prom
         throw new Error(
           `Timed out acquiring dispatch lock for ${teamName} after ${timeoutMs}ms. ` +
           `Set ${OMC_DISPATCH_LOCK_TIMEOUT_ENV} to increase (current: ${timeoutMs}ms, max: ${MAX_DISPATCH_LOCK_TIMEOUT_MS}ms).`,
+          { cause: error },
         );
       }
 

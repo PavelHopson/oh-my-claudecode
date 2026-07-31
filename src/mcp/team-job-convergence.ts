@@ -106,7 +106,7 @@ export function clearScopedTeamState(job: Pick<OmcTeamJob, 'cwd' | 'teamName'>):
   }
 
   const stateDir = join(job.cwd, '.omc', 'state', 'team', job.teamName);
-  let worktreeMessage = 'worktree cleanup skipped.';
+  let worktreeMessage: string;
   try {
     cleanupTeamWorktrees(job.teamName, job.cwd);
     worktreeMessage = `worktree cleanup attempted for ${job.teamName}.`;

@@ -28,7 +28,7 @@ export function summarizeSkillResources(skillFilePath: string): SkillResourceSum
     return undefined;
   }
 
-  let directoryEntries: string[] = [];
+  let directoryEntries: string[];
   try {
     directoryEntries = readdirSync(skillDirectory, { withFileTypes: true })
       .filter((entry) => entry.name !== 'SKILL.md' && !entry.name.startsWith('.'))

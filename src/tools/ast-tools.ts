@@ -240,7 +240,7 @@ function getFilesForLanguage(
   try {
     stat = statSync(resolvedPath);
   } catch (err) {
-    throw new Error(`Cannot access path "${resolvedPath}": ${(err as Error).message}`);
+    throw new Error(`Cannot access path "${resolvedPath}": ${(err as Error).message}`, { cause: err });
   }
 
   if (stat.isFile()) {

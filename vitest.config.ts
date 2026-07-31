@@ -6,6 +6,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     testTimeout: 30000,
+    // Native Windows becomes I/O-bound when many workers scan the local skill catalog.
+    // Keep enough parallelism for speed without causing unrelated 30s timeouts.
+    maxWorkers: process.platform === 'win32' ? 2 : undefined,
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules', 'dist', '.omc'],
     coverage: {

@@ -61,7 +61,7 @@ function syncMarketplaceClone(verbose: boolean = false): { ok: boolean; message:
     // Fall through to explicit branch verification below.
   }
 
-  let currentBranch = '';
+  let currentBranch: string;
   try {
     currentBranch = String(
       execFileSync('git', ['-C', marketplacePath, 'rev-parse', '--abbrev-ref', 'HEAD'], queryExecOpts) ?? ''
@@ -77,7 +77,7 @@ function syncMarketplaceClone(verbose: boolean = false): { ok: boolean; message:
     };
   }
 
-  let statusOutput = '';
+  let statusOutput: string;
   try {
     statusOutput = String(
       execFileSync('git', ['-C', marketplacePath, 'status', '--porcelain', '--untracked-files=normal'], queryExecOpts) ?? ''
@@ -93,8 +93,8 @@ function syncMarketplaceClone(verbose: boolean = false): { ok: boolean; message:
     };
   }
 
-  let aheadCount = 0;
-  let behindCount = 0;
+  let aheadCount: number;
+  let behindCount: number;
   try {
     const revListOutput = String(
       execFileSync('git', ['-C', marketplacePath, 'rev-list', '--left-right', '--count', 'HEAD...origin/main'], queryExecOpts) ?? ''
@@ -867,7 +867,8 @@ export async function performUpdate(options?: {
         'Auto-update via npm failed. Please run manually:\n' +
         '  npm install -g oh-my-claude-sisyphus@latest\n' +
         'Or use: /plugin install oh-my-claudecode\n' +
-        `Error: ${npmError instanceof Error ? npmError.message : npmError}`
+        `Error: ${npmError instanceof Error ? npmError.message : npmError}`,
+        { cause: npmError },
       );
     }
   } catch (error) {
