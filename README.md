@@ -47,6 +47,14 @@ Details: [docs/LOCAL-MODEL-RUNTIME-RD.md](docs/LOCAL-MODEL-RUNTIME-RD.md).
 
 The Eclipse fork has a synthetic OMC workload in the AI Hub-owned direct Kimi K3 benchmark. It is a network-gated evaluation, not a provider integration. See [docs/KIMI-K3-BENCHMARK.md](docs/KIMI-K3-BENCHMARK.md). TokenRouter is explicitly excluded until its vendor and data-processing boundary are documented.
 
+### Agent Reach reference
+
+Use Agent Reach only as a design reference for a capability registry, read-only `doctor`,
+visible failure reasons, and deterministic fallback order. Do not install its mutable
+multi-tool stack into OMC, reuse primary browser cookies, or allow workers to self-install
+global packages. A future registry proposal must pin every connector, enforce least privilege
+and egress policy, isolate untrusted web content from tool execution, and keep an audit log.
+
 ---
 
 ## Core Maintainers

@@ -26,9 +26,17 @@ The benchmark does not change OMC model routing. A production proposal requires:
 
 1. two passing OMC suite runs with a pinned model and reasoning setting;
 2. comparison against the current approved worker model on the same tasks;
-3. review of direct Kimi Terms, privacy, retention, region, subprocessors, and DPA requirements;
+3. acceptance of direct Kimi Terms, privacy, retention, region, subprocessors, and DPA
+   requirements for the intended data class; official API docs say inputs/outputs are not
+   used for training, but do not establish zero retention, one fixed retention period, or a
+   complete self-service DPA/subprocessor package;
 4. a separate service identity, rate limit, cost budget, timeout, and rollback path;
 5. compatibility verification for tool calls and long-running agent workflows;
 6. no shared key copied from AI Hub or another Eclipse product.
 
 TokenRouter is outside this evaluation and remains blocked until owner, Terms, DPA, routing providers, retention, subprocessors, and promotion conditions are verified.
+
+As of 31.07.2026 the dry-run harness is green, but no dedicated low-limit `KIMI_API_KEY` is
+present. A future live run is limited to synthetic prompts and requires a provider-side
+spending cap. Private code, agent instructions, user data and `.omc` state remain blocked
+until DPA, residency, retention and deletion-process requirements are approved.

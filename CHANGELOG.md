@@ -1,5 +1,10 @@
 # Unreleased
 
+- Updated Vitest/Vitest UI to 4.1.10 and MCP SDK to 1.30.0, selecting
+  `@hono/node-server` 2.0.12. This removes the critical Vitest UI advisory and the production
+  Hono path-traversal advisory; the production dependency audit is clean.
+- Documented Agent Reach as a registry/diagnostics reference only. OMC does not install its
+  upstream CLI chain or reuse browser-session cookies.
 - Added `omc mcp-baseline`: version-pinned Context7 and workspace-scoped Filesystem presets, with an
   opt-in GitHub read-only/lockdown preset. The command updates the unified Claude/Codex registry,
   keeps tokens out of config, supports dry-run, and fails closed for missing workspace paths.
