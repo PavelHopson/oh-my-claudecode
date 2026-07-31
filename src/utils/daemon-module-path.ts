@@ -1,4 +1,4 @@
-import { basename, dirname, join, win32 } from 'path';
+import { posix, win32 } from 'path';
 
 /**
  * Resolve the module path used by forked daemon bootstrap scripts.
@@ -12,7 +12,7 @@ export function resolveDaemonModulePath(
   distSegments: readonly string[],
 ): string {
   const isWindowsStylePath = /^[a-zA-Z]:\\/.test(currentFilename) || currentFilename.includes('\\');
-  const pathApi = isWindowsStylePath ? win32 : { basename, dirname, join };
+  const pathApi = isWindowsStylePath ? win32 : posix;
 
   const tsCompiledPath = currentFilename.replace(/\.ts$/, '.js');
   if (tsCompiledPath !== currentFilename) {

@@ -141,7 +141,7 @@ describe('Skill Finder', () => {
     expect(result).toBe(hint);
   });
 
-  it('should construct PROJECT_SKILLS_SUBDIR with path.join', () => {
-    expect(PROJECT_SKILLS_SUBDIR).toBe(join('.omc', 'skills'));
+  it('should expose PROJECT_SKILLS_SUBDIR as a portable relative path', () => {
+    expect(PROJECT_SKILLS_SUBDIR).toBe('.omc/skills');
   });
 });

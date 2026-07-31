@@ -1,11 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 // Hoist test state dir so it's available inside vi.mock factories
-const { TEST_STATE_DIR } = vi.hoisted(() => ({
-  TEST_STATE_DIR: '/tmp/omc-cache-test-state',
-}));
+const { TEST_ROOT, TEST_STATE_DIR, TEST_STATE_RELATIVE } = vi.hoisted(() => {
+  const root = (process.env.TEMP ?? process.env.TMPDIR ?? '/tmp').replace(/[\\/]+$/, '');
+  const relative = `omc-cache-test-state-${process.pid}`;
+  return {
+    TEST_ROOT: root,
+    TEST_STATE_DIR: `${root}/${relative}`,
+    TEST_STATE_RELATIVE: relative,
+  };
+});
 
 vi.mock('../../../lib/atomic-write.js', () => ({
   atomicWriteJsonSync: vi.fn((filePath: string, data: unknown) => {
@@ -16,10 +23,10 @@ vi.mock('../../../lib/atomic-write.js', () => ({
 
 vi.mock('../../../lib/worktree-paths.js', () => ({
   OmcPaths: {
-    STATE: TEST_STATE_DIR,
+    STATE: TEST_STATE_RELATIVE,
   },
-  getWorktreeRoot: () => '/',
-  validateWorkingDirectory: () => '/',
+  getWorktreeRoot: () => TEST_ROOT,
+  validateWorkingDirectory: () => TEST_ROOT,
 }));
 
 // Import after mocks are set up (vi.mock is hoisted)
@@ -151,7 +158,7 @@ describe('cleanupStaleStates', () => {
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join('/tmp', 'omc-cleanup-test-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omc-cleanup-test-'));
     const stateDir = path.join(tmpDir, '.omc', 'state');
     fs.mkdirSync(stateDir, { recursive: true });
     clearStateCache();
@@ -159,7 +166,7 @@ describe('cleanupStaleStates', () => {
   });
 
   afterEach(() => {
-    consoleWarnSpy.mockRestore();
+    consoleWarnSpy?.mockRestore();
     clearStateCache();
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });

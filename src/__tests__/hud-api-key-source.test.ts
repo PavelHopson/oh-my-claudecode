@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { join } from 'path';
 import { detectApiKeySource, renderApiKeySource } from '../hud/elements/api-key-source.js';
 import type { ApiKeySource } from '../hud/elements/api-key-source.js';
 
@@ -23,6 +24,8 @@ import { existsSync, readFileSync } from 'fs';
 
 const mockedExistsSync = vi.mocked(existsSync);
 const mockedReadFileSync = vi.mocked(readFileSync);
+const PROJECT_DIR = '/my/project';
+const GLOBAL_CONFIG_DIR = '/home/user/.claude';
 
 describe('API Key Source Element', () => {
   const originalEnv = process.env.ANTHROPIC_API_KEY;
@@ -43,37 +46,37 @@ describe('API Key Source Element', () => {
   describe('detectApiKeySource', () => {
     it('should return "project" when key is in project settings', () => {
       mockedExistsSync.mockImplementation((path) =>
-        String(path) === '/my/project/.claude/settings.local.json'
+        String(path) === join(PROJECT_DIR, '.claude', 'settings.local.json')
       );
       mockedReadFileSync.mockReturnValue(
         JSON.stringify({ env: { ANTHROPIC_API_KEY: 'sk-ant-xxx' } })
       );
 
-      expect(detectApiKeySource('/my/project')).toBe('project');
+      expect(detectApiKeySource(PROJECT_DIR)).toBe('project');
     });
 
     it('should return "global" when key is in global settings', () => {
       mockedExistsSync.mockImplementation((path) =>
-        String(path) === '/home/user/.claude/settings.json'
+        String(path) === join(GLOBAL_CONFIG_DIR, 'settings.json')
       );
       mockedReadFileSync.mockReturnValue(
         JSON.stringify({ env: { ANTHROPIC_API_KEY: 'sk-ant-xxx' } })
       );
 
-      expect(detectApiKeySource('/my/project')).toBe('global');
+      expect(detectApiKeySource(PROJECT_DIR)).toBe('global');
     });
 
     it('should return "env" when key is only in environment', () => {
       mockedExistsSync.mockReturnValue(false);
       process.env.ANTHROPIC_API_KEY = 'sk-ant-xxx';
 
-      expect(detectApiKeySource('/my/project')).toBe('env');
+      expect(detectApiKeySource(PROJECT_DIR)).toBe('env');
     });
 
     it('should return null when no key is found anywhere', () => {
       mockedExistsSync.mockReturnValue(false);
 
-      expect(detectApiKeySource('/my/project')).toBeNull();
+      expect(detectApiKeySource(PROJECT_DIR)).toBeNull();
     });
 
     it('should prioritize project over global', () => {
@@ -82,19 +85,19 @@ describe('API Key Source Element', () => {
         JSON.stringify({ env: { ANTHROPIC_API_KEY: 'sk-ant-xxx' } })
       );
 
-      expect(detectApiKeySource('/my/project')).toBe('project');
+      expect(detectApiKeySource(PROJECT_DIR)).toBe('project');
     });
 
     it('should prioritize global over env', () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-xxx';
       mockedExistsSync.mockImplementation((path) =>
-        String(path) === '/home/user/.claude/settings.json'
+        String(path) === join(GLOBAL_CONFIG_DIR, 'settings.json')
       );
       mockedReadFileSync.mockReturnValue(
         JSON.stringify({ env: { ANTHROPIC_API_KEY: 'sk-ant-xxx' } })
       );
 
-      expect(detectApiKeySource('/my/project')).toBe('global');
+      expect(detectApiKeySource(PROJECT_DIR)).toBe('global');
     });
 
     it('should handle malformed JSON gracefully', () => {
@@ -102,19 +105,19 @@ describe('API Key Source Element', () => {
       mockedReadFileSync.mockReturnValue('not valid json');
       process.env.ANTHROPIC_API_KEY = 'sk-ant-xxx';
 
-      expect(detectApiKeySource('/my/project')).toBe('env');
+      expect(detectApiKeySource(PROJECT_DIR)).toBe('env');
     });
 
     it('should handle settings without env block', () => {
       mockedExistsSync.mockReturnValue(true);
       mockedReadFileSync.mockReturnValue(JSON.stringify({ someOtherKey: true }));
 
-      expect(detectApiKeySource('/my/project')).toBeNull();
+      expect(detectApiKeySource(PROJECT_DIR)).toBeNull();
     });
 
     it('should handle null cwd', () => {
       mockedExistsSync.mockImplementation((path) =>
-        String(path) === '/home/user/.claude/settings.json'
+        String(path) === join(GLOBAL_CONFIG_DIR, 'settings.json')
       );
       mockedReadFileSync.mockReturnValue(
         JSON.stringify({ env: { ANTHROPIC_API_KEY: 'sk-ant-xxx' } })

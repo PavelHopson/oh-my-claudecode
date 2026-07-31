@@ -13,14 +13,13 @@
  * - Sanitization edge cases (unicode, empty, path traversal)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import {
-  mkdirSync, writeFileSync, rmSync, existsSync,
+  mkdirSync, mkdtempSync, writeFileSync, rmSync, existsSync,
   readFileSync, appendFileSync, realpathSync
 } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { getClaudeConfigDir } from '../../utils/config-dir.js';
 
 // --- task-file-ops imports ---
 import {
@@ -60,17 +59,35 @@ import {
 
 const EDGE_TEAM_TASKS = 'test-edge-tasks';
 const EDGE_TEAM_IO = 'test-edge-io';
+const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
+const EDGE_CONFIG_ROOT = mkdtempSync(join(tmpdir(), 'test-edge-config-'));
 
 // task-file-ops tests use canonical path via cwd
 let TASK_TEST_CWD: string;
 let TASKS_DIR: string;
 
-const TEAMS_IO_DIR = join(getClaudeConfigDir(), 'teams', EDGE_TEAM_IO);
+const TEAMS_IO_DIR = join(EDGE_CONFIG_ROOT, 'teams', EDGE_TEAM_IO);
 
 const HB_DIR = join(tmpdir(), 'test-edge-hb');
 const REG_DIR = join(tmpdir(), 'test-edge-reg');
 const REG_TEAM = 'test-edge-reg-team';
-const CONFIG_DIR = join(getClaudeConfigDir(), 'teams', REG_TEAM);
+const CONFIG_DIR = join(EDGE_CONFIG_ROOT, 'teams', REG_TEAM);
+
+beforeEach(() => {
+  process.env.CLAUDE_CONFIG_DIR = EDGE_CONFIG_ROOT;
+});
+
+afterEach(() => {
+  if (ORIGINAL_CLAUDE_CONFIG_DIR === undefined) {
+    delete process.env.CLAUDE_CONFIG_DIR;
+  } else {
+    process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CLAUDE_CONFIG_DIR;
+  }
+});
+
+afterAll(() => {
+  rmSync(EDGE_CONFIG_ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});
 
 function writeTaskHelper(task: TaskFile): void {
   mkdirSync(TASKS_DIR, { recursive: true });

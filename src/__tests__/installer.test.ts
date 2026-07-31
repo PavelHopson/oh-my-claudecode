@@ -570,9 +570,9 @@ describe('Installer Constants', () => {
         CLAUDE_MD_CONTENT,
       ];
 
-      // Note: "TODO" appears intentionally in "Todo_Discipline", "TodoWrite" tool, and "TODO OBSESSION"
-      // These are legitimate uses, not placeholder text to be filled in later
-      const placeholders = ['FIXME', 'XXX', '[placeholder]'];
+      // TODO/FIXME are legitimate review terms in agent instructions, so only flag
+      // the common placeholder form where they introduce unfinished prose.
+      const placeholders = ['XXX', '[placeholder]'];
       // TBD checked with word boundary to avoid matching "JTBD" (Jobs To Be Done)
       const wordBoundaryPlaceholders = [/\bTBD\b/];
 
@@ -584,11 +584,11 @@ describe('Installer Constants', () => {
           expect(pattern.test(content as string)).toBe(false);
         }
 
-        // Check for standalone TODO that looks like a placeholder
-        // (e.g., "TODO: implement this" but not "TODO LIST" or "TODO OBSESSION")
-        const todoPlaceholderPattern = /TODO:\s+[a-z]/i;
-        const hasTodoPlaceholder = todoPlaceholderPattern.test(content as string);
-        expect(hasTodoPlaceholder).toBe(false);
+        // Check for a line-level marker that looks like unfinished source prose;
+        // inline examples such as `// TODO: add rate limiting` remain valid docs.
+        const unfinishedMarkerPattern = /^\s*(?:(?:\/\/|#|\/\*|\*)\s*)?(?:TODO|FIXME):\s+[a-z]/im;
+        const hasUnfinishedMarker = unfinishedMarkerPattern.test(content as string);
+        expect(hasUnfinishedMarker).toBe(false);
       }
     });
 

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
+import { join } from 'path';
 
 const CLAUDE_CONFIG_DIR = '/tmp/test-claude';
-const CACHE_PATH = `${CLAUDE_CONFIG_DIR}/plugins/oh-my-claudecode/.usage-cache.json`;
+const CACHE_PATH = join(CLAUDE_CONFIG_DIR, 'plugins', 'oh-my-claudecode', '.usage-cache.json');
 const LOCK_PATH = `${CACHE_PATH}.lock`;
 
 function createFsMock(initialFiles: Record<string, string>) {
@@ -74,11 +75,11 @@ describe('getUsage lock failure fallback', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    vi.unmock('../../utils/config-dir.js');
-    vi.unmock('../../utils/ssrf-guard.js');
-    vi.unmock('fs');
-    vi.unmock('child_process');
-    vi.unmock('https');
+    vi.doUnmock('../../utils/config-dir.js');
+    vi.doUnmock('../../utils/ssrf-guard.js');
+    vi.doUnmock('fs');
+    vi.doUnmock('child_process');
+    vi.doUnmock('https');
   });
 
   it('returns stale cache without throwing when lock acquisition fails', async () => {
@@ -193,11 +194,11 @@ describe('getUsage lock behavior', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    vi.unmock('../../utils/config-dir.js');
-    vi.unmock('../../utils/ssrf-guard.js');
-    vi.unmock('fs');
-    vi.unmock('child_process');
-    vi.unmock('https');
+    vi.doUnmock('../../utils/config-dir.js');
+    vi.doUnmock('../../utils/ssrf-guard.js');
+    vi.doUnmock('fs');
+    vi.doUnmock('child_process');
+    vi.doUnmock('https');
   });
 
   it('acquires lock before API call when cache is expired', async () => {

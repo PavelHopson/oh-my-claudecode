@@ -1,16 +1,22 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
+import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, mkdtempSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import {
   readNewOutboxMessages,
   readAllTeamOutboxMessages,
   resetOutboxCursor,
 } from '../outbox-reader.js';
-import { getClaudeConfigDir } from '../../utils/config-dir.js';
 import type { OutboxMessage } from '../types.js';
 
 const TEST_TEAM = 'test-team-outbox-reader';
-const TEAMS_DIR = join(getClaudeConfigDir(), 'teams', TEST_TEAM);
+const TEST_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'omc-outbox-reader-'));
+const TEAMS_DIR = join(TEST_CONFIG_DIR, 'teams', TEST_TEAM);
+const ORIGINAL_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
+
+beforeAll(() => {
+  process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+});
 
 beforeEach(() => {
   mkdirSync(join(TEAMS_DIR, 'outbox'), { recursive: true });
@@ -18,6 +24,12 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(TEAMS_DIR, { recursive: true, force: true });
+});
+
+afterAll(() => {
+  if (ORIGINAL_CONFIG_DIR === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CONFIG_DIR;
+  rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
 });
 
 describe('readNewOutboxMessages', () => {

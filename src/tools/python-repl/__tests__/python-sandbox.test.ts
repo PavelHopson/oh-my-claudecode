@@ -1,9 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { fileURLToPath } from 'url';
 import { isPythonSandboxEnabled, clearSecurityConfigCache } from '../../../lib/security-config.js';
+
+const PYTHON_COMMAND = process.env.OMC_TEST_PYTHON || (process.platform === 'win32' ? 'py' : 'python3');
+const BRIDGE_PATH = fileURLToPath(new URL('../../../../bridge/gyoshu_bridge.py', import.meta.url));
 
 describe('python-repl sandbox env propagation', () => {
   const originalSecurity = process.env.OMC_SECURITY;
@@ -33,7 +37,7 @@ describe('python-repl sandbox env propagation', () => {
 // Helper: test sandbox import blocking by extracting only the relevant constants
 // from gyoshu_bridge.py using AST parsing, avoiding full module initialization.
 function executePythonInSandbox(code: string): string {
-  const bridgePath = new URL('../../../../bridge/gyoshu_bridge.py', import.meta.url).pathname;
+  const bridgePath = BRIDGE_PATH;
   const tmpScript = join(tmpdir(), `omc-sandbox-test-${Date.now()}.py`);
   const escapedBridgePath = JSON.stringify(bridgePath);
   const escapedCode = JSON.stringify(code);
@@ -67,7 +71,7 @@ function executePythonInSandbox(code: string): string {
   ];
   writeFileSync(tmpScript, lines.join('\n'), 'utf-8');
   try {
-    return execSync(`python3 ${tmpScript}`, { timeout: 10000 }).toString().trim();
+    return execFileSync(PYTHON_COMMAND, [tmpScript], { timeout: 10000 }).toString().trim();
   } catch (e: unknown) {
     const err = e as { stdout?: Buffer; stderr?: Buffer };
     return (err.stdout?.toString() ?? '') + (err.stderr?.toString() ?? '');
@@ -147,7 +151,7 @@ describe('python-repl sandbox blocked modules (bypass prevention)', () => {
 
 describe('python-repl sandbox bridge startup integration', () => {
   it('should load bridge with OMC_PYTHON_SANDBOX=1 and block os in sandbox namespace', () => {
-    const bridgePath = new URL('../../../../bridge/gyoshu_bridge.py', import.meta.url).pathname;
+    const bridgePath = BRIDGE_PATH;
     const tmpScript = join(tmpdir(), `omc-sandbox-bridge-${Date.now()}.py`);
     const escapedPath = JSON.stringify(bridgePath);
     // Load bridge as a module (not exec) with sandbox enabled,
@@ -168,7 +172,7 @@ describe('python-repl sandbox bridge startup integration', () => {
     ].join('\n');
     writeFileSync(tmpScript, script, 'utf-8');
     try {
-      const result = execSync(`python3 ${tmpScript} 2>&1`, { timeout: 10000 }).toString().trim();
+      const result = execFileSync(PYTHON_COMMAND, [tmpScript], { timeout: 10000 }).toString().trim();
       expect(result).toContain('PASS:');
       expect(result).toContain('blocked in sandbox mode');
     } finally {

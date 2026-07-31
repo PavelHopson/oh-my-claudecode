@@ -72,9 +72,16 @@ function getTrustedPrefixes(): string[] {
   return trusted;
 }
 
+function normalizePolicyPath(candidate: string): string {
+  return normalize(candidate).replace(/\\/g, '/');
+}
+
 function isTrustedPrefix(resolvedPath: string): boolean {
-  const normalized = normalize(resolvedPath);
-  return getTrustedPrefixes().some(prefix => normalized.startsWith(normalize(prefix)));
+  const normalized = normalizePolicyPath(resolvedPath);
+  return getTrustedPrefixes().some(prefix => {
+    const normalizedPrefix = normalizePolicyPath(prefix).replace(/\/+$/, '');
+    return normalized === normalizedPrefix || normalized.startsWith(`${normalizedPrefix}/`);
+  });
 }
 
 function assertBinaryName(binary: string): void {
@@ -115,7 +122,7 @@ export function resolveCliBinaryPath(binary: string): string {
     throw new Error(`Resolved CLI binary '${binary}' to relative path`);
   }
 
-  if (UNTRUSTED_PATH_PATTERNS.some(pattern => pattern.test(resolvedPath))) {
+  if (UNTRUSTED_PATH_PATTERNS.some(pattern => pattern.test(normalizePolicyPath(resolvedPath)))) {
     throw new Error(`Resolved CLI binary '${binary}' to untrusted location: ${resolvedPath}`);
   }
 

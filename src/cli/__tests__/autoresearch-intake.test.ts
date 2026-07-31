@@ -32,7 +32,7 @@ describe('autoresearch intake draft artifacts', () => {
         seedInputs: { topic: 'Improve onboarding for first-time contributors' },
       });
 
-      expect(artifact.path).toMatch(/\.omc\/specs\/deep-interview-autoresearch-improve-onboarding-for-first-time-contributors\.md$/);
+      expect(artifact.path.replace(/\\/g, '/')).toMatch(/\.omc\/specs\/deep-interview-autoresearch-improve-onboarding-for-first-time-contributors\.md$/);
       expect(artifact.launchReady).toBe(false);
       expect(artifact.content).toMatch(/## Mission Draft/);
       expect(artifact.content).toMatch(/## Evaluator Draft/);
@@ -63,10 +63,10 @@ describe('autoresearch intake draft artifacts', () => {
         seedInputs: { topic: 'Measure onboarding friction' },
       });
 
-      expect(artifacts.draftArtifactPath).toMatch(/deep-interview-autoresearch-onboarding-friction\.md$/);
-      expect(artifacts.missionArtifactPath).toMatch(/autoresearch-onboarding-friction\/mission\.md$/);
-      expect(artifacts.sandboxArtifactPath).toMatch(/autoresearch-onboarding-friction\/sandbox\.md$/);
-      expect(artifacts.resultPath).toMatch(/autoresearch-onboarding-friction\/result\.json$/);
+      expect(artifacts.draftArtifactPath.replace(/\\/g, '/')).toMatch(/deep-interview-autoresearch-onboarding-friction\.md$/);
+      expect(artifacts.missionArtifactPath.replace(/\\/g, '/')).toMatch(/autoresearch-onboarding-friction\/mission\.md$/);
+      expect(artifacts.sandboxArtifactPath.replace(/\\/g, '/')).toMatch(/autoresearch-onboarding-friction\/sandbox\.md$/);
+      expect(artifacts.resultPath.replace(/\\/g, '/')).toMatch(/autoresearch-onboarding-friction\/result\.json$/);
 
       const resultJson = JSON.parse(await readFile(artifacts.resultPath, 'utf-8')) as {
         kind: string;

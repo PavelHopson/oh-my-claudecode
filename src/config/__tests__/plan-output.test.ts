@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { join } from "node:path";
 import {
   DEFAULT_PLAN_OUTPUT_DIRECTORY,
   DEFAULT_PLAN_OUTPUT_FILENAME_TEMPLATE,
@@ -63,6 +64,6 @@ describe("plan output helpers", () => {
 
     expect(
       resolvePlanOutputAbsolutePath("/repo", "autopilot-impl", config),
-    ).toBe("/repo/docs/plans/autopilot-impl.plan.md");
+    ).toBe(join("/repo", "docs", "plans", "autopilot-impl.plan.md"));
   });
 });

@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, existsSync, rmSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { closeJobDb } from '../../lib/job-state-db.js';
 
 import {
   processPreCompact,
@@ -61,7 +62,8 @@ describe('processPreCompact - Compaction Mutex (issue #453)', () => {
 
   afterEach(() => {
     try {
-      rmSync(tempDir, { recursive: true, force: true });
+      closeJobDb(tempDir);
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     } catch { /* ignore cleanup errors */ }
   });
 
@@ -171,13 +173,14 @@ describe('processPreCompact - Compaction Mutex (issue #453)', () => {
         expect(files2.length).toBe(1);
       }
     } finally {
-      rmSync(tempDir2, { recursive: true, force: true });
+      closeJobDb(tempDir2);
+      rmSync(tempDir2, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 
   it('should propagate rejection to all coalesced callers and clear mutex', async () => {
     // Use a nonexistent directory to trigger an error in doProcessPreCompact
-    const badDir = '/tmp/nonexistent-compaction-dir-' + Date.now();
+    const badDir = join(tmpdir(), 'nonexistent-compaction-dir-' + Date.now());
     const input = makePreCompactInput(badDir);
 
     // Fire 3 concurrent calls sharing the same in-flight promise

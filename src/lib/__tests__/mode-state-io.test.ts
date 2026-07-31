@@ -56,7 +56,7 @@ describe('mode-state-io', () => {
       expect(existsSync(join(tempDir, '.omc', 'state'))).toBe(true);
     });
 
-    it('should write file with 0o600 permissions', () => {
+    it.skipIf(process.platform === 'win32')('should write file with 0o600 permissions', () => {
       writeModeState('ralph', { active: true }, tempDir);
       const filePath = join(tempDir, '.omc', 'state', 'ralph-state.json');
       const { mode } = require('fs').statSync(filePath);

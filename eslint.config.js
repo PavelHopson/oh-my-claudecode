@@ -31,6 +31,10 @@ export default tseslint.config(
       // Minor style issues - warn only
       'prefer-const': 'warn',
       'no-regex-spaces': 'warn',
+      // ESLint 10 additions: keep legacy findings visible without blocking the migration
+      'no-useless-assignment': 'warn',
+      'no-unassigned-vars': 'warn',
+      'preserve-caught-error': 'warn',
       // Pre-existing code patterns - disable
       'no-useless-catch': 'off',
       // Allow ANSI escape codes in regexes (used for terminal output stripping)

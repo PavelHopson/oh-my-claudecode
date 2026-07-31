@@ -138,7 +138,12 @@ export function containerUriToHostUri(uri: string, context: DevContainerContext 
     return uri;
   }
 
-  return pathToFileURL(containerPathToHostPath(fileURLToPath(uri), context)).href;
+  const parsedUri = new URL(uri);
+  if (parsedUri.protocol !== 'file:' || (parsedUri.hostname && parsedUri.hostname !== 'localhost')) {
+    return uri;
+  }
+  const containerPath = decodeURIComponent(parsedUri.pathname);
+  return pathToFileURL(containerPathToHostPath(containerPath, context)).href;
 }
 
 function resolveDevContainerConfigPath(workspaceRoot: string): string | undefined {

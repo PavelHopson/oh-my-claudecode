@@ -64,10 +64,14 @@ function truncatePreview(text: string, maxChars: number): string {
   return text.length > maxChars ? `${text.slice(0, maxChars)}...` : text;
 }
 
+function formatArtifactPath(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
 function formatArtifactDescriptorLines(label: string, descriptor?: ArtifactDescriptor): string[] {
   if (!descriptor) return [];
 
-  const lines = [`- **${label} artifact:** \`${descriptor.path}\``];
+  const lines = [`- **${label} artifact:** \`${formatArtifactPath(descriptor.path)}\``];
   if (descriptor.sizeBytes !== undefined) {
     lines.push(`- **${label} size:** ${descriptor.sizeBytes} bytes`);
   }
@@ -123,7 +127,7 @@ export const interopSendTaskTool: ToolDefinition<{
             `**Task ID:** ${task.id}\n` +
             `**Type:** ${task.type}\n` +
             `**Description:** ${task.description}\n` +
-            (task.descriptionArtifact ? `**Description artifact:** ${task.descriptionArtifact.path}\n` : '') +
+            (task.descriptionArtifact ? `**Description artifact:** ${formatArtifactPath(task.descriptionArtifact.path)}\n` : '') +
             `**Status:** ${task.status}\n` +
             `**Created:** ${task.createdAt}\n\n` +
             (task.files ? `**Files:** ${task.files.join(', ')}\n\n` : '') +

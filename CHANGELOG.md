@@ -1,5 +1,16 @@
 # Unreleased
 
+- Completed the ESLint 10 migration and refreshed the TypeScript ESLint toolchain; both production
+  and full dependency trees now report zero known vulnerabilities in the offline audit cache.
+- Registered the existing database reviewer, TypeScript reviewer, and refactor cleaner prompts in
+  the public agent registry and configuration schema, bringing the documented agent total to 22.
+- Hardened Windows support across team path guardrails, transcript recovery, devcontainer URIs,
+  autoresearch Git paths/CRLF handling, daemon and skill resource paths, standalone hook commands,
+  interop artifact output, Python discovery, npm/npx execution, and session filename encoding.
+- Made the test suite platform-aware without weakening runtime validation. The complete Windows
+  suite now passes: 443 files and 7,653 tests, with 39 intentional skips.
+- Fixed the standalone persistent-mode hook missing `homedir`, and restored SessionEnd Python REPL
+  cleanup for transcripts stored under the Windows system temporary directory.
 - Updated Vitest/Vitest UI to 4.1.10 and MCP SDK to 1.30.0, selecting
   `@hono/node-server` 2.0.12. This removes the critical Vitest UI advisory and the production
   Hono path-traversal advisory; the production dependency audit is clean.

@@ -20,6 +20,10 @@ const tmuxCalls = vi.hoisted(() => ({
   capturePaneText: '❯ ready\n',
 }));
 
+function hasQuotedArg(command: string, argument: string): boolean {
+  return command.includes(`'${argument}'`) || command.includes(`"${argument}"`);
+}
+
 vi.mock('child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('child_process')>();
   const { promisify: utilPromisify } = await import('util');
@@ -148,7 +152,7 @@ describe('spawnWorkerForTask – prompt mode (Gemini & Codex)', () => {
     const launchCmd = launchCall![launchCall!.length - 1];
 
     // Should contain -i flag for interactive mode
-    expect(launchCmd).toContain("'-i'");
+    expect(launchCmd).toMatch(/["']-i["']/);
     // Should contain the inbox path reference
     expect(launchCmd).toContain('.omc/state/team/test-team/workers/worker-1/inbox.md');
     expect(launchCmd).toContain('start work now');
@@ -201,7 +205,7 @@ describe('spawnWorkerForTask – prompt mode (Gemini & Codex)', () => {
     const launchCmd = launchCall![launchCall!.length - 1];
 
     // Should NOT contain -i flag (codex uses positional argument, not a flag)
-    expect(launchCmd).not.toContain("'-i'");
+    expect(hasQuotedArg(launchCmd, '-i')).toBe(false);
     // Should contain the inbox path as a positional argument
     expect(launchCmd).toContain('.omc/state/team/test-team/workers/worker-1/inbox.md');
     expect(launchCmd).toContain('start work now');
@@ -332,8 +336,8 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     const launchCmd = launchCall![launchCall!.length - 1];
 
     // Should contain --model flag with the model value
-    expect(launchCmd).toContain("'--model'");
-    expect(launchCmd).toContain("'gpt-4o'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
+    expect(hasQuotedArg(launchCmd, 'gpt-4o')).toBe(true);
   });
 
   it('codex worker falls back to OMC_CODEX_DEFAULT_MODEL', async () => {
@@ -348,8 +352,8 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     expect(launchCall).toBeDefined();
     const launchCmd = launchCall![launchCall!.length - 1];
 
-    expect(launchCmd).toContain("'--model'");
-    expect(launchCmd).toContain("'o3-mini'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
+    expect(hasQuotedArg(launchCmd, 'o3-mini')).toBe(true);
   });
 
   it('codex worker prefers OMC_EXTERNAL_MODELS_DEFAULT_CODEX_MODEL over legacy fallback', async () => {
@@ -365,7 +369,8 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     expect(launchCall).toBeDefined();
     const launchCmd = launchCall![launchCall!.length - 1];
 
-    expect(launchCmd).toContain("'--model' 'gpt-4o'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
+    expect(hasQuotedArg(launchCmd, 'gpt-4o')).toBe(true);
   });
 
   it('gemini worker passes model from OMC_EXTERNAL_MODELS_DEFAULT_GEMINI_MODEL', async () => {
@@ -380,8 +385,8 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     expect(launchCall).toBeDefined();
     const launchCmd = launchCall![launchCall!.length - 1];
 
-    expect(launchCmd).toContain("'--model'");
-    expect(launchCmd).toContain("'gemini-2.0-flash'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
+    expect(hasQuotedArg(launchCmd, 'gemini-2.0-flash')).toBe(true);
   });
 
   it('gemini worker falls back to OMC_GEMINI_DEFAULT_MODEL', async () => {
@@ -396,8 +401,8 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     expect(launchCall).toBeDefined();
     const launchCmd = launchCall![launchCall!.length - 1];
 
-    expect(launchCmd).toContain("'--model'");
-    expect(launchCmd).toContain("'gemini-1.5-pro'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
+    expect(hasQuotedArg(launchCmd, 'gemini-1.5-pro')).toBe(true);
   });
 
   it('gemini worker prefers OMC_EXTERNAL_MODELS_DEFAULT_GEMINI_MODEL over legacy fallback', async () => {
@@ -413,7 +418,8 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     expect(launchCall).toBeDefined();
     const launchCmd = launchCall![launchCall!.length - 1];
 
-    expect(launchCmd).toContain("'--model' 'gemini-2.0-flash'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
+    expect(hasQuotedArg(launchCmd, 'gemini-2.0-flash')).toBe(true);
   });
 
   it('claude worker does not pass model flag (not supported)', async () => {
@@ -429,7 +435,7 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     const launchCmd = launchCall![launchCall!.length - 1];
 
     // Claude worker should not have --model flag
-    expect(launchCmd).not.toContain("'--model'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(false);
   });
 
   it('claude worker propagates ANTHROPIC_MODEL into the pane startup env', async () => {
@@ -446,7 +452,7 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
 
     expect(launchCmd).toContain('ANTHROPIC_MODEL=');
     expect(launchCmd).toContain('claude-opus-4-1');
-    expect(launchCmd).not.toContain("'--model'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(false);
   });
 
   it('claude worker propagates custom provider env needed for inherited model selection', async () => {
@@ -510,7 +516,7 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     expect(launchCmd).toContain('claude-haiku-4-5-override');
     // With Bedrock env vars set, resolveClaudeWorkerModel returns the sonnet model
     // so --model IS expected now (this was the #1695 fix)
-    expect(launchCmd).toContain("'--model'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(true);
     expect(launchCmd).toContain('us.anthropic.claude-sonnet-4-6-v1:0');
   });
 
@@ -527,6 +533,6 @@ describe('spawnWorkerForTask – model passthrough from environment variables', 
     const launchCmd = launchCall![launchCall!.length - 1];
 
     // Should not have --model flag when no env var is set
-    expect(launchCmd).not.toContain("'--model'");
+    expect(hasQuotedArg(launchCmd, '--model')).toBe(false);
   });
 });

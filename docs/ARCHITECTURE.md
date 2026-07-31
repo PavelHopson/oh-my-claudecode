@@ -49,7 +49,7 @@ User Input --> Hooks (event detection) --> Skills (behavior injection)
 
 ### Overview
 
-OMC provides 19 specialized agents organized into 4 lanes. Each agent is invoked as `oh-my-claudecode:<agent-name>` and runs on the appropriate model tier.
+OMC provides 22 specialized agents organized into 4 lanes. Each agent is invoked as `oh-my-claudecode:<agent-name>` and runs on the appropriate model tier.
 
 ### Build/Analysis Lane
 
@@ -74,6 +74,8 @@ Quality gates before handoff. Catches correctness and security issues.
 |-------|---------------|------|
 | `security-reviewer` | sonnet | Security vulnerabilities, trust boundaries, authn/authz review |
 | `code-reviewer` | opus | Comprehensive code review, API contracts, backward compatibility |
+| `database-reviewer` | opus | Query performance, indexing, ORM patterns, migration safety |
+| `typescript-reviewer` | opus | Strict-mode type safety, React hooks, async patterns, performance |
 
 ### Domain Lane
 
@@ -89,6 +91,7 @@ Domain experts called in when needed.
 | `git-master` | sonnet | Git operations, commits, rebase, history management |
 | `document-specialist` | sonnet | External documentation, API/SDK reference lookup |
 | `code-simplifier` | opus | Code clarity, simplification, maintainability improvement |
+| `refactor-cleaner` | sonnet | Dead code, duplication, oversized functions, stale marker cleanup |
 
 ### Coordination Lane
 

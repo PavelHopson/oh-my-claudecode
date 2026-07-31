@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { spawnSync } from 'child_process';
+import { normalize } from 'node:path';
 import {
   getContract,
   buildLaunchArgs,
@@ -34,6 +35,11 @@ function setProcessPlatform(platform: NodeJS.Platform): () => void {
 }
 
 describe('model-contract', () => {
+  beforeEach(() => {
+    vi.mocked(spawnSync).mockClear();
+    clearResolvedPathCache();
+  });
+
   describe('backward-compat API shims', () => {
     it('shouldLoadShellRc returns false for non-interactive compatibility mode', () => {
       expect(shouldLoadShellRc()).toBe(false);
@@ -44,8 +50,8 @@ describe('model-contract', () => {
       mockSpawnSync.mockReturnValue({ status: 0, stdout: '/usr/local/bin/claude\n', stderr: '', pid: 0, output: [], signal: null });
 
       clearResolvedPathCache();
-      expect(resolveCliBinaryPath('claude')).toBe('/usr/local/bin/claude');
-      expect(resolveCliBinaryPath('claude')).toBe('/usr/local/bin/claude');
+      expect(resolveCliBinaryPath('claude')).toBe(normalize('/usr/local/bin/claude'));
+      expect(resolveCliBinaryPath('claude')).toBe(normalize('/usr/local/bin/claude'));
       expect(mockSpawnSync).toHaveBeenCalledTimes(1);
       clearResolvedPathCache();
     });
@@ -69,7 +75,7 @@ describe('model-contract', () => {
       expect(validateCliBinaryPath('claude')).toEqual({
         valid: true,
         binary: 'claude',
-        resolvedPath: '/usr/local/bin/claude',
+        resolvedPath: normalize('/usr/local/bin/claude'),
       });
 
       mockSpawnSync.mockReturnValue({ status: 1, stdout: '', stderr: 'not found', pid: 0, output: [], signal: null });
@@ -276,7 +282,8 @@ describe('model-contract', () => {
         'codex',
         '--dangerously-bypass-approvals-and-sandbox',
       ]);
-      expect(mockSpawnSync).toHaveBeenCalledWith('which', ['codex'], { timeout: 5000, encoding: 'utf8' });
+      const finder = process.platform === 'win32' ? 'where' : 'which';
+      expect(mockSpawnSync).toHaveBeenCalledWith(finder, ['codex'], { timeout: 5000, encoding: 'utf8' });
       mockSpawnSync.mockRestore();
     });
 
@@ -312,8 +319,12 @@ describe('model-contract', () => {
 
       isCliAvailable('codex');
 
-      expect(mockSpawnSync).toHaveBeenNthCalledWith(1, 'which', ['codex'], { timeout: 5000, encoding: 'utf8' });
-      expect(mockSpawnSync).toHaveBeenNthCalledWith(2, 'codex', ['--version'], { timeout: 5000, shell: false });
+      const finder = process.platform === 'win32' ? 'where' : 'which';
+      expect(mockSpawnSync).toHaveBeenNthCalledWith(1, finder, ['codex'], { timeout: 5000, encoding: 'utf8' });
+      expect(mockSpawnSync).toHaveBeenNthCalledWith(2, 'codex', ['--version'], {
+        timeout: 5000,
+        shell: process.platform === 'win32',
+      });
       clearResolvedPathCache();
       mockSpawnSync.mockRestore();
     });

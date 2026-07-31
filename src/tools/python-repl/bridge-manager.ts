@@ -155,13 +155,19 @@ async function ensurePythonEnvironment(projectRoot: string): Promise<PythonEnvIn
     return existing;
   }
 
-  // Fallback: try system python3
-  try {
-    await execFileAsync('python3', ['--version']);
-    // type is 'venv' because PythonEnvInfo only supports 'venv'; this is a system fallback
-    return { pythonPath: 'python3', type: 'venv' };
-  } catch {
-    // python3 not available
+  // Fall back to a system interpreter. Windows installations commonly expose
+  // `python` without the Unix-style `python3` alias.
+  const systemCandidates = process.platform === 'win32'
+    ? ['python', 'py']
+    : ['python3', 'python'];
+  for (const pythonPath of systemCandidates) {
+    try {
+      await execFileAsync(pythonPath, ['--version']);
+      // type is 'venv' because PythonEnvInfo only supports 'venv'; this is a system fallback
+      return { pythonPath, type: 'venv' };
+    } catch {
+      // Try the next conventional executable name.
+    }
   }
 
   throw new Error(

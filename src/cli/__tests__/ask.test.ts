@@ -4,14 +4,16 @@ import { mkdtempSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { spawnSync } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { parseAskArgs, resolveAskAdvisorScriptPath } from '../ask.js';
+import { hasUsableBash } from '../../__tests__/helpers/bash.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..', '..', '..');
 const CLI_ENTRY = join(REPO_ROOT, 'src', 'cli', 'index.ts');
-const TSX_LOADER = join(REPO_ROOT, 'node_modules', 'tsx', 'dist', 'loader.mjs');
+const TSX_LOADER = pathToFileURL(join(REPO_ROOT, 'node_modules', 'tsx', 'dist', 'loader.mjs')).href;
 const ADVISOR_SCRIPT = join(REPO_ROOT, 'scripts', 'run-provider-advisor.js');
+const itWithBash = hasUsableBash() ? it : it.skip;
 
 interface CliRunResult {
   status: number | null;
@@ -83,7 +85,7 @@ function runAdvisorScriptWithPrelude(
   envOverrides: Record<string, string> = {},
   options: RunOptions = {},
 ): CliRunResult {
-  const result = spawnSync(process.execPath, ['--import', preludePath, ADVISOR_SCRIPT, ...args], {
+  const result = spawnSync(process.execPath, ['--import', pathToFileURL(preludePath).href, ADVISOR_SCRIPT, ...args], {
     cwd,
     encoding: 'utf-8',
     env: buildChildEnv(envOverrides, options),
@@ -259,8 +261,12 @@ describe('omc ask command', () => {
       );
 
       expect(result.error).toBeUndefined();
-      expect(result.status).toBe(0);
-      expect(result.stderr).toBe('');
+      expect(result.status, result.stderr).toBe(0);
+      if (process.platform === 'win32') {
+        expect(result.stderr).toContain('Native Windows (win32) detected');
+      } else {
+        expect(result.stderr).toBe('');
+      }
 
       const payload = JSON.parse(result.stdout);
       expect(payload).toEqual({
@@ -385,7 +391,7 @@ describe('omc ask command', () => {
 });
 
 describe('run-provider-advisor script contract', () => {
-  it('writes artifact to .omc/artifacts/ask/{provider}-{slug}-{timestamp}.md', () => {
+  itWithBash('writes artifact to .omc/artifacts/ask/{provider}-{slug}-{timestamp}.md', () => {
     const wd = mkdtempSync(join(tmpdir(), 'omc-ask-artifact-'));
     try {
       const binDir = writeFakeProviderBinary(wd, 'claude');
@@ -409,7 +415,7 @@ describe('run-provider-advisor script contract', () => {
     }
   });
 
-  it('accepts OMX original-task alias in Phase-1 with deprecation warning', () => {
+  itWithBash('accepts OMX original-task alias in Phase-1 with deprecation warning', () => {
     const wd = mkdtempSync(join(tmpdir(), 'omc-ask-original-alias-'));
     try {
       const binDir = writeFakeProviderBinary(wd, 'gemini');
@@ -487,7 +493,7 @@ describe('run-provider-advisor script contract', () => {
     }
   });
 
-  it('sanitizes Rust env vars for codex so artifacts do not capture Rust stderr logs', () => {
+  itWithBash('sanitizes Rust env vars for codex so artifacts do not capture Rust stderr logs', () => {
     const wd = mkdtempSync(join(tmpdir(), 'omc-ask-codex-rust-env-'));
     try {
       const binDir = writeFakeCodexBinary(wd);
@@ -636,7 +642,7 @@ describe('resolveAskAdvisorScriptPath', () => {
   it('resolves canonical env and supports package-root relative paths', () => {
     const packageRoot = '/tmp/pkg-root';
     expect(resolveAskAdvisorScriptPath(packageRoot, { OMC_ASK_ADVISOR_SCRIPT: 'scripts/custom.js' } as NodeJS.ProcessEnv))
-      .toBe('/tmp/pkg-root/scripts/custom.js');
+      .toBe(join(packageRoot, 'scripts', 'custom.js'));
     expect(resolveAskAdvisorScriptPath(packageRoot, { OMC_ASK_ADVISOR_SCRIPT: '/opt/custom.js' } as NodeJS.ProcessEnv))
       .toBe('/opt/custom.js');
   });

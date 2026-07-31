@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { hasUsableBash } from './helpers/bash.js';
 
 interface HooksConfig {
   hooks?: Record<string, Array<{ hooks?: Array<{ command?: string }> }>>;
 }
 
 const hooksJsonPath = join(__dirname, '..', '..', 'hooks', 'hooks.json');
+const describeWithBash = hasUsableBash() ? describe : describe.skip;
 
 function expandHookCommandArgv(command: string, pluginRoot: string): string[] {
   const shellScript =
@@ -35,7 +37,7 @@ function getHookCommands(): string[] {
     .filter((command): command is string => typeof command === 'string');
 }
 
-describe('hooks.json command escaping', () => {
+describeWithBash('hooks.json command escaping', () => {
   it('uses shell-expanded CLAUDE_PLUGIN_ROOT segments instead of pre-expanded ${...} placeholders', () => {
     for (const command of getHookCommands()) {
       expect(command).toContain('"$CLAUDE_PLUGIN_ROOT"/scripts/run.cjs');

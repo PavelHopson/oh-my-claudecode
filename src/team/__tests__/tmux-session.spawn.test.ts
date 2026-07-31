@@ -43,10 +43,16 @@ describe('spawnWorkerInPane', () => {
     );
     expect(literalSend).toBeDefined();
     const launchLine = literalSend?.[literalSend.length - 1] ?? '';
-    expect(launchLine).toContain('exec "$@"');
-    expect(launchLine).toContain("'--'");
-    expect(launchLine).toContain("'gpt-5;touch /tmp/pwn'");
-    expect(launchLine).not.toContain('exec codex --full-auto');
+    if (process.platform === 'win32') {
+      expect(launchLine).toContain('cmd.exe /d /s /c');
+      expect(launchLine).toContain('"gpt-5;touch /tmp/pwn"');
+      expect(launchLine).not.toContain('&& touch /tmp/pwn');
+    } else {
+      expect(launchLine).toContain('exec "$@"');
+      expect(launchLine).toContain("'--'");
+      expect(launchLine).toContain("'gpt-5;touch /tmp/pwn'");
+      expect(launchLine).not.toContain('exec codex --full-auto');
+    }
   });
 
   it('rejects invalid team names before command construction', async () => {

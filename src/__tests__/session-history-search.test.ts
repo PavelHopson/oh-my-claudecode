@@ -8,7 +8,7 @@ import {
 } from '../features/session-history-search/index.js';
 
 function encodeProjectPath(projectPath: string): string {
-  return projectPath.replace(/[\\/]/g, '-');
+  return projectPath.replace(/[\\/.:]/g, '-');
 }
 
 function writeTranscript(filePath: string, entries: Array<Record<string, unknown>>): void {
@@ -19,6 +19,8 @@ function writeTranscript(filePath: string, entries: Array<Record<string, unknown
 describe('session history search', () => {
   const repoRoot = process.cwd();
   const originalConfigDir = process.env.CLAUDE_CONFIG_DIR;
+  const originalHome = process.env.HOME;
+  const originalUserProfile = process.env.USERPROFILE;
   let tempRoot: string;
   let claudeDir: string;
   let otherProject: string;
@@ -28,6 +30,10 @@ describe('session history search', () => {
     tempRoot = mkdtempSync(join(tmpdir(), 'omc-session-search-'));
     claudeDir = join(tempRoot, 'claude');
     otherProject = join(tempRoot, 'other-project');
+    const testHome = join(tempRoot, 'home');
+    mkdirSync(testHome, { recursive: true });
+    process.env.HOME = testHome;
+    process.env.USERPROFILE = testHome;
     tildeClaudeDir = join(homedir(), `.omc-session-search-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     process.env.CLAUDE_CONFIG_DIR = claudeDir;
     process.env.OMC_STATE_DIR = join(tempRoot, 'omc-state');
@@ -79,9 +85,12 @@ describe('session history search', () => {
     } else {
       process.env.CLAUDE_CONFIG_DIR = originalConfigDir;
     }
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = originalUserProfile;
     delete process.env.OMC_STATE_DIR;
     rmSync(tempRoot, { recursive: true, force: true });
-    rmSync(tildeClaudeDir, { recursive: true, force: true });
   });
 
   it('searches the current project by default and returns structured snippets', async () => {

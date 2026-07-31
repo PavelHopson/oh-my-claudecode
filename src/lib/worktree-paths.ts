@@ -12,7 +12,7 @@
 import { createHash } from 'crypto';
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync, realpathSync, readdirSync } from 'fs';
-import { homedir } from 'os';
+import { homedir, tmpdir } from 'os';
 import { resolve, normalize, relative, sep, join, isAbsolute, basename, dirname } from 'path';
 import { getClaudeConfigDir } from '../utils/config-dir.js';
 
@@ -435,11 +435,11 @@ export function isValidTranscriptPath(transcriptPath: string): boolean {
   const normalized = normalize(expandedPath);
   const home = homedir();
 
-  // Allowed: [$CLAUDE_CONFIG_DIR|~/.claude], ~/.omc/..., /tmp/...
+  // Allowed: [$CLAUDE_CONFIG_DIR|~/.claude], ~/.omc/..., and the platform temp directory.
   const allowedPrefixes = [
     getClaudeConfigDir(),
     join(home, '.omc'),
-    '/tmp',
+    tmpdir(),
     '/var/folders', // macOS temp
   ];
 
@@ -607,8 +607,7 @@ export function resolveTranscriptPath(transcriptPath: string | undefined, cwd?: 
     );
 
     // Extract session filename from the original path
-    const lastSep = transcriptPath.lastIndexOf('/');
-    const sessionFile = lastSep !== -1 ? transcriptPath.substring(lastSep + 1) : '';
+    const sessionFile = basename(transcriptPath);
     if (sessionFile) {
       // The projects directory is under the Claude config dir
       const projectsDir = join(getClaudeConfigDir(), 'projects');
@@ -616,7 +615,7 @@ export function resolveTranscriptPath(transcriptPath: string | undefined, cwd?: 
       if (existsSync(projectsDir)) {
         // Encode the main project root the same way Claude Code does:
         // replace path separators with `-`, replace dots with `-`.
-        const encodedMain = mainProjectRoot.replace(/[/\\.]/g, '-');
+        const encodedMain = mainProjectRoot.replace(/[/\\.:]/g, '-');
         const resolvedPath = join(projectsDir, encodedMain, sessionFile);
         if (existsSync(resolvedPath)) return resolvedPath;
       }
@@ -645,12 +644,11 @@ export function resolveTranscriptPath(transcriptPath: string | undefined, cwd?: 
     }).trim();
 
     if (mainRepoRoot !== worktreeTop) {
-      const lastSep = transcriptPath.lastIndexOf('/');
-      const sessionFile = lastSep !== -1 ? transcriptPath.substring(lastSep + 1) : '';
+      const sessionFile = basename(transcriptPath);
       if (sessionFile) {
         const projectsDir = join(getClaudeConfigDir(), 'projects');
         if (existsSync(projectsDir)) {
-          const encodedMain = mainRepoRoot.replace(/[/\\.]/g, '-');
+          const encodedMain = mainRepoRoot.replace(/[/\\.:]/g, '-');
           const resolvedPath = join(projectsDir, encodedMain, sessionFile);
           if (existsSync(resolvedPath)) return resolvedPath;
         }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { execFileSync, execSync } from 'child_process';
+import { join } from 'path';
 
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();
@@ -48,16 +49,16 @@ describe('teleportCommand', () => {
 
     (existsSync as ReturnType<typeof vi.fn>).mockImplementation((target: unknown) => {
       if (typeof target !== 'string') return false;
-      if (target === '/root/issue') return true;
-      if (target.includes('/issue/repo-')) return false;
-      if (target === '/repo/package-lock.json') return true;
-      if (target === '/repo/node_modules') return true;
+      if (target === join('/root', 'issue')) return true;
+      if (target.includes(join('issue', 'repo-'))) return false;
+      if (target === join('/repo', 'package-lock.json')) return true;
+      if (target === join('/repo', 'node_modules')) return true;
       return false;
     });
 
     (readFileSync as ReturnType<typeof vi.fn>).mockImplementation((target: unknown) => {
-      if (target === '/repo/package.json') return '{"name":"repo","version":"1.0.0"}';
-      if (typeof target === 'string' && target.includes('/issue/repo-1/package.json')) {
+      if (target === join('/repo', 'package.json')) return '{"name":"repo","version":"1.0.0"}';
+      if (typeof target === 'string' && target.endsWith(join('issue', 'repo-1', 'package.json'))) {
         return '{"name":"repo","version":"1.0.0"}';
       }
       throw new Error(`unexpected readFileSync(${String(target)})`);
@@ -117,8 +118,8 @@ describe('teleportCommand', () => {
     await teleportCommand('#1', { worktreePath: '/root' });
 
     expect(symlinkSync).toHaveBeenCalledWith(
-      '/repo/node_modules',
-      '/root/issue/repo-1/node_modules',
+      join('/repo', 'node_modules'),
+      join('/root', 'issue', 'repo-1', 'node_modules'),
       expect.stringMatching(/dir|junction/),
     );
 
@@ -131,8 +132,8 @@ describe('teleportCommand', () => {
   it('falls back to install with a warning when package.json differs', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     (readFileSync as ReturnType<typeof vi.fn>).mockImplementation((target: unknown) => {
-      if (target === '/repo/package.json') return '{"name":"repo","version":"1.0.0"}';
-      if (typeof target === 'string' && target.includes('/issue/repo-1/package.json')) {
+      if (target === join('/repo', 'package.json')) return '{"name":"repo","version":"1.0.0"}';
+      if (typeof target === 'string' && target.endsWith(join('issue', 'repo-1', 'package.json'))) {
         return '{"name":"repo","version":"2.0.0"}';
       }
       throw new Error(`unexpected readFileSync(${String(target)})`);
@@ -142,7 +143,7 @@ describe('teleportCommand', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('package.json differs'));
     expect(symlinkSync).not.toHaveBeenCalled();
-    expect(execFileSync).toHaveBeenCalledWith('npm', ['install'], expect.objectContaining({ cwd: '/root/issue/repo-1' }));
+    expect(execFileSync).toHaveBeenCalledWith('npm', ['install'], expect.objectContaining({ cwd: join('/root', 'issue', 'repo-1') }));
   });
 
   it('falls back to pnpm install when symlinking is disabled in config', async () => {
@@ -151,31 +152,31 @@ describe('teleportCommand', () => {
     });
     (existsSync as ReturnType<typeof vi.fn>).mockImplementation((target: unknown) => {
       if (typeof target !== 'string') return false;
-      if (target === '/root/issue') return true;
-      if (target.includes('/issue/repo-')) return false;
-      if (target === '/repo/pnpm-lock.yaml') return true;
-      if (target === '/repo/node_modules') return true;
+      if (target === join('/root', 'issue')) return true;
+      if (target.includes(join('issue', 'repo-'))) return false;
+      if (target === join('/repo', 'pnpm-lock.yaml')) return true;
+      if (target === join('/repo', 'node_modules')) return true;
       return false;
     });
 
     await teleportCommand('#1', { worktreePath: '/root' });
 
     expect(symlinkSync).not.toHaveBeenCalled();
-    expect(execFileSync).toHaveBeenCalledWith('pnpm', ['install'], expect.objectContaining({ cwd: '/root/issue/repo-1' }));
+    expect(execFileSync).toHaveBeenCalledWith('pnpm', ['install'], expect.objectContaining({ cwd: join('/root', 'issue', 'repo-1') }));
   });
 
   it('falls back to yarn install when parent package.json cannot be read', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     (existsSync as ReturnType<typeof vi.fn>).mockImplementation((target: unknown) => {
       if (typeof target !== 'string') return false;
-      if (target === '/root/issue') return true;
-      if (target.includes('/issue/repo-')) return false;
-      if (target === '/repo/yarn.lock') return true;
-      if (target === '/repo/node_modules') return true;
+      if (target === join('/root', 'issue')) return true;
+      if (target.includes(join('issue', 'repo-'))) return false;
+      if (target === join('/repo', 'yarn.lock')) return true;
+      if (target === join('/repo', 'node_modules')) return true;
       return false;
     });
     (readFileSync as ReturnType<typeof vi.fn>).mockImplementation((target: unknown) => {
-      if (typeof target === 'string' && target.includes('/issue/repo-1/package.json')) {
+      if (typeof target === 'string' && target.endsWith(join('issue', 'repo-1', 'package.json'))) {
         return '{"name":"repo","version":"1.0.0"}';
       }
       throw new Error(`unexpected readFileSync(${String(target)})`);
@@ -184,6 +185,6 @@ describe('teleportCommand', () => {
     await teleportCommand('#1', { worktreePath: '/root' });
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('could not read package.json'));
-    expect(execFileSync).toHaveBeenCalledWith('yarn', ['install'], expect.objectContaining({ cwd: '/root/issue/repo-1' }));
+    expect(execFileSync).toHaveBeenCalledWith('yarn', ['install'], expect.objectContaining({ cwd: join('/root', 'issue', 'repo-1') }));
   });
 });

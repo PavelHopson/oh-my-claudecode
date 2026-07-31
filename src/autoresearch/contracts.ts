@@ -206,7 +206,7 @@ export async function loadAutoresearchMissionContract(missionDirArg: string): Pr
     throw contractError(`mission-dir does not exist: ${missionDir}`);
   }
 
-  const repoRoot = readGit(missionDir, ['rev-parse', '--show-toplevel']);
+  const repoRoot = resolve(readGit(missionDir, ['rev-parse', '--show-toplevel']));
   ensurePathInside(repoRoot, missionDir);
 
   const missionFile = join(missionDir, 'mission.md');

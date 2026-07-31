@@ -13,7 +13,7 @@ describe('bridge-entry workdir guardrails (source contract)', () => {
 
   it('requires working directory to stay under home directory', () => {
     expect(source).toContain('realpathSync(workingDirectory)');
-    expect(source).toContain("resolved.startsWith(home + '/')");
+    expect(source).toContain('isPathWithin(home, resolved)');
   });
 
   it('requires working directory to be inside a git worktree', () => {
@@ -38,4 +38,3 @@ describe('validateConfigPath guardrails', () => {
     expect(validateConfigPath('/home/user/project/.omc/state/config.json', home, claudeConfigDir)).toBe(true);
   });
 });
-

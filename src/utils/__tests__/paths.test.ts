@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { join } from 'path';
 import {
   toForwardSlash,
   toShellPath,
@@ -162,8 +163,8 @@ describe('cross-platform path utilities', () => {
       process.env.XDG_CONFIG_HOME = '/custom/config';
       delete process.env.OMC_HOME;
 
-      expect(getGlobalOmcConfigRoot()).toBe('/custom/config/omc');
-      expect(getGlobalOmcConfigPath('config.json')).toBe('/custom/config/omc/config.json');
+      expect(getGlobalOmcConfigRoot()).toBe(join('/custom/config', 'omc'));
+      expect(getGlobalOmcConfigPath('config.json')).toBe(join('/custom/config', 'omc', 'config.json'));
     });
 
     it('should use XDG state root for global OMC state on Linux', () => {
@@ -171,8 +172,8 @@ describe('cross-platform path utilities', () => {
       process.env.XDG_STATE_HOME = '/custom/state';
       delete process.env.OMC_HOME;
 
-      expect(getGlobalOmcStateRoot()).toBe('/custom/state/omc');
-      expect(getGlobalOmcStatePath('daemon.json')).toBe('/custom/state/omc/daemon.json');
+      expect(getGlobalOmcStateRoot()).toBe(join('/custom/state', 'omc'));
+      expect(getGlobalOmcStatePath('daemon.json')).toBe(join('/custom/state', 'omc', 'daemon.json'));
     });
 
     it('should keep OMC_HOME authoritative for config and state roots', () => {
@@ -182,7 +183,7 @@ describe('cross-platform path utilities', () => {
       process.env.XDG_STATE_HOME = '/custom/state';
 
       expect(getGlobalOmcConfigRoot()).toBe('/override/omc');
-      expect(getGlobalOmcStateRoot()).toBe('/override/omc/state');
+      expect(getGlobalOmcStateRoot()).toBe(join('/override/omc', 'state'));
     });
 
     it('should keep explicit OMC_HOME state candidates backward compatible', () => {
@@ -190,8 +191,8 @@ describe('cross-platform path utilities', () => {
       process.env.OMC_HOME = '/override/omc';
 
       expect(getGlobalOmcStateCandidates('mcp-registry-state.json')).toEqual([
-        '/override/omc/state/mcp-registry-state.json',
-        '/override/omc/mcp-registry-state.json',
+        join('/override/omc', 'state', 'mcp-registry-state.json'),
+        join('/override/omc', 'mcp-registry-state.json'),
       ]);
     });
 
@@ -202,7 +203,7 @@ describe('cross-platform path utilities', () => {
       delete process.env.XDG_STATE_HOME;
 
       expect(getGlobalOmcConfigRoot()).toBe(getLegacyOmcDir());
-      expect(getGlobalOmcStateRoot()).toBe(`${getLegacyOmcDir()}/state`);
+      expect(getGlobalOmcStateRoot()).toBe(join(getLegacyOmcDir(), 'state'));
     });
 
     it('should include legacy fallback candidates for config and state paths', () => {
@@ -212,12 +213,12 @@ describe('cross-platform path utilities', () => {
       delete process.env.OMC_HOME;
 
       expect(getGlobalOmcConfigCandidates('config.json')).toEqual([
-        '/custom/config/omc/config.json',
-        `${getLegacyOmcDir()}/config.json`,
+        join('/custom/config', 'omc', 'config.json'),
+        join(getLegacyOmcDir(), 'config.json'),
       ]);
       expect(getGlobalOmcStateCandidates('reply-session-registry.jsonl')).toEqual([
-        '/custom/state/omc/reply-session-registry.jsonl',
-        `${getLegacyOmcDir()}/state/reply-session-registry.jsonl`,
+        join('/custom/state', 'omc', 'reply-session-registry.jsonl'),
+        join(getLegacyOmcDir(), 'state', 'reply-session-registry.jsonl'),
       ]);
     });
   });

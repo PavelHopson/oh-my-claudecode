@@ -324,6 +324,8 @@ describe('spawnAutoresearchTmux', () => {
 
   it('uses explicit cwd, login-shell wrapping, and verifies startup before logging success', () => {
     tmuxAvailableMock.mockReturnValue(true);
+    const cliPath = join(process.cwd(), 'bin', 'omc.js');
+    const expectedCommand = `${process.execPath} ${cliPath} autoresearch /repo/missions/demo`;
     let hasSessionCalls = 0;
     vi.mocked(execFileSync).mockImplementation((cmd, args, opts) => {
       if (cmd === 'tmux' && Array.isArray(args) && args[0] === 'has-session') {
@@ -340,7 +342,7 @@ describe('spawnAutoresearchTmux', () => {
       }
       if (cmd === 'tmux' && Array.isArray(args) && args[0] === 'new-session') {
         expect(args.slice(0, 6)).toEqual(['new-session', '-d', '-s', 'omc-autoresearch-demo', '-c', '/repo']);
-        expect(args[6]).toBe('wrapped:' + `${process.execPath} ${process.cwd()}/bin/omc.js autoresearch /repo/missions/demo`);
+        expect(args[6]).toBe(`wrapped:${expectedCommand}`);
         return Buffer.from('');
       }
       throw new Error(`unexpected call: ${String(cmd)}`);
@@ -348,8 +350,8 @@ describe('spawnAutoresearchTmux', () => {
 
     spawnAutoresearchTmux('/repo/missions/demo', 'demo');
 
-    expect(buildTmuxShellCommandMock).toHaveBeenCalledWith(process.execPath, [expect.stringMatching(/bin\/omc\.js$/), 'autoresearch', '/repo/missions/demo']);
-    expect(wrapWithLoginShellMock).toHaveBeenCalledWith(`${process.execPath} ${process.cwd()}/bin/omc.js autoresearch /repo/missions/demo`);
+    expect(buildTmuxShellCommandMock).toHaveBeenCalledWith(process.execPath, [expect.stringMatching(/bin[\\/]omc\.js$/), 'autoresearch', '/repo/missions/demo']);
+    expect(wrapWithLoginShellMock).toHaveBeenCalledWith(expectedCommand);
     expect(logSpy).toHaveBeenCalledWith('\nAutoresearch launched in background tmux session.');
     expect(logSpy).toHaveBeenCalledWith('  Attach:   tmux attach -t omc-autoresearch-demo');
   });
@@ -399,6 +401,7 @@ describe('spawnAutoresearchSetupTmux', () => {
   it('launches a detached claude setup session and seeds deep-interview autoresearch mode', async () => {
     tmuxAvailableMock.mockReturnValue(true);
     const repo = await initRepo();
+    const setupCodexHome = join(repo, '.omx', 'tmp', 'omc-autoresearch-setup-kf12oi', 'codex-home');
     let hasSessionCalls = 0;
     try {
       vi.mocked(execFileSync).mockImplementation((cmd, args) => {
@@ -408,7 +411,7 @@ describe('spawnAutoresearchSetupTmux', () => {
           ]);
           expect(typeof args[9]).toBe('string');
           expect(String(args[9])).toContain('wrapped:env');
-          expect(String(args[9])).toContain(`CODEX_HOME=${repo}/.omx/tmp/omc-autoresearch-setup-kf12oi/codex-home`);
+          expect(String(args[9])).toContain(`CODEX_HOME=${setupCodexHome}`);
           expect(String(args[9])).toContain('claude');
           expect(String(args[9])).toContain('--dangerously-skip-permissions');
           return '%42\n' as never;
@@ -426,8 +429,8 @@ describe('spawnAutoresearchSetupTmux', () => {
 
       spawnAutoresearchSetupTmux(repo);
 
-      expect(buildTmuxShellCommandMock).toHaveBeenCalledWith('env', [`CODEX_HOME=${repo}/.omx/tmp/omc-autoresearch-setup-kf12oi/codex-home`, 'claude', '--dangerously-skip-permissions']);
-      expect(wrapWithLoginShellMock).toHaveBeenCalledWith(`env CODEX_HOME=${repo}/.omx/tmp/omc-autoresearch-setup-kf12oi/codex-home claude --dangerously-skip-permissions`);
+      expect(buildTmuxShellCommandMock).toHaveBeenCalledWith('env', [`CODEX_HOME=${setupCodexHome}`, 'claude', '--dangerously-skip-permissions']);
+      expect(wrapWithLoginShellMock).toHaveBeenCalledWith(`env CODEX_HOME=${setupCodexHome} claude --dangerously-skip-permissions`);
       expect(buildAutoresearchSetupSlashCommand()).toBe('/deep-interview --autoresearch');
       expect(vi.mocked(execFileSync)).toHaveBeenCalledWith(
         'tmux',

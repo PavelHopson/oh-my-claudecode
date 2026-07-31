@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import {
   isSafeCommand,
   isHeredocWithSafeBase,
@@ -267,7 +268,7 @@ describe('permission-handler', () => {
   });
 
   describe('isActiveModeRunning', () => {
-    const testDir = '/tmp/omc-permission-test';
+    const testDir = path.join(os.tmpdir(), 'omc-permission-test');
     const stateDir = path.join(testDir, '.omc', 'state');
 
     beforeEach(() => {
@@ -363,7 +364,7 @@ describe('permission-handler', () => {
   });
 
   describe('processPermissionRequest', () => {
-    const testDir = '/tmp/omc-permission-test';
+    const testDir = path.join(os.tmpdir(), 'omc-permission-test');
     const stateDir = path.join(testDir, '.omc', 'state');
 
     beforeEach(() => {

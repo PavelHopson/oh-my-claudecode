@@ -6,14 +6,16 @@ import {
   readProbeResult, writeProbeResult, getRegistrationStrategy,
   registerMcpWorker, unregisterMcpWorker, isMcpWorker, listMcpWorkers
 } from '../team-registration.js';
-import { getClaudeConfigDir } from '../../utils/config-dir.js';
 import type { ConfigProbeResult } from '../types.js';
 
 const TEST_DIR = join(tmpdir(), '__test_team_reg__');
 const TEST_TEAM = 'test-team-reg-team';
-const CONFIG_DIR = join(getClaudeConfigDir(), 'teams', TEST_TEAM);
+const TEST_CONFIG_DIR = join(TEST_DIR, 'config');
+const CONFIG_DIR = join(TEST_CONFIG_DIR, 'teams', TEST_TEAM);
+const ORIGINAL_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
 beforeEach(() => {
+  process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
   mkdirSync(TEST_DIR, { recursive: true });
   mkdirSync(join(TEST_DIR, '.omc', 'state'), { recursive: true });
   mkdirSync(CONFIG_DIR, { recursive: true });
@@ -21,7 +23,8 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true });
-  rmSync(CONFIG_DIR, { recursive: true, force: true });
+  if (ORIGINAL_CONFIG_DIR === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CONFIG_DIR;
 });
 
 describe('probeResult', () => {

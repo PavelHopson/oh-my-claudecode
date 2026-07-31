@@ -29,7 +29,7 @@ describe('bridge-entry security', () => {
   });
 
   it('checks path is under homedir', () => {
-    expect(source).toContain("home + '/'");
+    expect(source).toContain('isPathWithin(home, resolved)');
   });
 
   it('verifies git worktree', () => {

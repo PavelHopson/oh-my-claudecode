@@ -8,11 +8,13 @@ const SYNTHETIC_THINKING_CONTENT = '[Synthetic thinking block inserted to preser
 
 describe('recovery storage issue #1386 regression', () => {
   const originalXdgDataHome = process.env.XDG_DATA_HOME;
+  const originalLocalAppData = process.env.LOCALAPPDATA;
   let dataDir: string;
 
   beforeEach(() => {
     dataDir = mkdtempSync(join(tmpdir(), 'issue-1386-recovery-'));
     process.env.XDG_DATA_HOME = dataDir;
+    process.env.LOCALAPPDATA = dataDir;
     vi.resetModules();
   });
 
@@ -21,6 +23,11 @@ describe('recovery storage issue #1386 regression', () => {
       delete process.env.XDG_DATA_HOME;
     } else {
       process.env.XDG_DATA_HOME = originalXdgDataHome;
+    }
+    if (originalLocalAppData === undefined) {
+      delete process.env.LOCALAPPDATA;
+    } else {
+      process.env.LOCALAPPDATA = originalLocalAppData;
     }
     vi.resetModules();
   });

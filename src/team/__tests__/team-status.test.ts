@@ -6,16 +6,17 @@ import { getTeamStatus } from '../team-status.js';
 import { atomicWriteJson } from '../fs-utils.js';
 import { appendOutbox } from '../inbox-outbox.js';
 import { recordTaskUsage } from '../usage-tracker.js';
-import { getClaudeConfigDir } from '../../utils/config-dir.js';
 import type { HeartbeatData, TaskFile, OutboxMessage, McpWorkerMember } from '../types.js';
 
 const TEST_TEAM = 'test-team-status';
 let WORK_DIR: string;
 // Canonical tasks dir: {WORK_DIR}/.omc/state/team/{TEST_TEAM}/tasks/
 let TASKS_DIR: string;
+const ORIGINAL_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
 beforeEach(() => {
   WORK_DIR = join(realpathSync(tmpdir()), `omc-team-status-test-${Date.now()}`);
+  process.env.CLAUDE_CONFIG_DIR = join(WORK_DIR, 'config');
   TASKS_DIR = join(WORK_DIR, '.omc', 'state', 'team', TEST_TEAM, 'tasks');
   mkdirSync(TASKS_DIR, { recursive: true });
   mkdirSync(join(WORK_DIR, '.omc', 'state', 'team-bridge', TEST_TEAM), { recursive: true });
@@ -24,8 +25,8 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(WORK_DIR, { recursive: true, force: true });
-  // Clean up outbox files written to ~/.claude/teams/ by appendOutbox
-  rmSync(join(getClaudeConfigDir(), 'teams', TEST_TEAM), { recursive: true, force: true });
+  if (ORIGINAL_CONFIG_DIR === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CONFIG_DIR;
 });
 
 function writeWorkerRegistry(workers: McpWorkerMember[]): void {

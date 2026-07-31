@@ -52,8 +52,11 @@ export {
 export {
   securityReviewerAgent,
   codeReviewerAgent,
+  databaseReviewerAgent,
+  typescriptReviewerAgent,
   gitMasterAgent,
-  codeSimplifierAgent
+  codeSimplifierAgent,
+  refactorCleanerAgent
 } from './definitions.js';
 
 // Core exports (getAgentDefinitions and omcSystemPrompt)

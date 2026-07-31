@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdirSync, rmSync, writeFileSync, existsSync } from 'fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import {
   stateReadTool,
   stateWriteTool,
@@ -9,7 +10,7 @@ import {
   stateGetStatusTool,
 } from '../state-tools.js';
 
-const TEST_DIR = '/tmp/state-tools-test';
+const TEST_DIR = mkdtempSync(join(tmpdir(), 'state-tools-test-'));
 
 // Mock validateWorkingDirectory to allow test directory
 vi.mock('../../lib/worktree-paths.js', async () => {

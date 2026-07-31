@@ -79,7 +79,7 @@ export function generateTeamReport(
     lines.push('|--------|-------|-----------------|--------------|----------------|');
     for (const w of usage.workers) {
       const timeStr = `${Math.round(w.totalWallClockMs / 1000)}s`;
-      lines.push(`| ${w.workerName} | ${w.taskCount} | ${timeStr} | ${w.totalPromptChars.toLocaleString()} | ${w.totalResponseChars.toLocaleString()} |`);
+      lines.push(`| ${w.workerName} | ${w.taskCount} | ${timeStr} | ${w.totalPromptChars.toLocaleString('en-US')} | ${w.totalResponseChars.toLocaleString('en-US')} |`);
     }
     lines.push('');
   }

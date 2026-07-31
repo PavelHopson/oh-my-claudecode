@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
-import { join, dirname, sep } from 'path';
+import { join, dirname, parse, sep } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { getClaudeConfigDir } from '../utils/config-dir.js';
 import { getPluginCacheBase } from '../utils/paths.js';
@@ -69,18 +69,20 @@ describe('HUD Windows Compatibility', () => {
 
     it('pathToFileURL should correctly convert Unix paths', () => {
       const unixPath = '/home/user/test.js';
+      const windowsRoot = parse(process.cwd()).root.replace(/\\/g, '/');
       expect(pathToFileURL(unixPath).href).toBe(
         process.platform === 'win32'
-          ? 'file:///C:/home/user/test.js'
+          ? `file:///${windowsRoot}home/user/test.js`
           : 'file:///home/user/test.js'
       );
     });
 
     it('pathToFileURL should encode spaces in paths', () => {
       const spacePath = '/path/with spaces/file.js';
+      const windowsRoot = parse(process.cwd()).root.replace(/\\/g, '/');
       expect(pathToFileURL(spacePath).href).toBe(
         process.platform === 'win32'
-          ? 'file:///C:/path/with%20spaces/file.js'
+          ? `file:///${windowsRoot}path/with%20spaces/file.js`
           : 'file:///path/with%20spaces/file.js'
       );
     });

@@ -56,6 +56,12 @@ function getConfigPaths(): [string, string] {
   return getGlobalOmcConfigCandidates('config.json') as [string, string];
 }
 
+function setProcessPlatform(platform: NodeJS.Platform): () => void {
+  const originalPlatform = process.platform;
+  Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+  return () => Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+}
+
 describe('getIdleNotificationCooldownSeconds', () => {
   const originalHome = process.env.HOME;
 
@@ -116,17 +122,22 @@ describe('getIdleNotificationCooldownSeconds', () => {
   });
 
   it('falls back to legacy ~/.omc config when XDG config is absent', () => {
-    const [, legacyConfigPath] = getConfigPaths();
-    (existsSync as ReturnType<typeof vi.fn>).mockImplementation((p: string) => p === legacyConfigPath);
-    (readFileSync as ReturnType<typeof vi.fn>).mockImplementation((p: string) => {
-      if (p === legacyConfigPath) {
-        return JSON.stringify({ notificationCooldown: { sessionIdleSeconds: 45 } });
-      }
-      throw new Error('not found');
-    });
+    const restorePlatform = setProcessPlatform('linux');
+    try {
+      const [, legacyConfigPath] = getConfigPaths();
+      (existsSync as ReturnType<typeof vi.fn>).mockImplementation((p: string) => p === legacyConfigPath);
+      (readFileSync as ReturnType<typeof vi.fn>).mockImplementation((p: string) => {
+        if (p === legacyConfigPath) {
+          return JSON.stringify({ notificationCooldown: { sessionIdleSeconds: 45 } });
+        }
+        throw new Error('not found');
+      });
 
-    expect(getIdleNotificationCooldownSeconds()).toBe(45);
-    expect(readFileSync).toHaveBeenCalledWith(legacyConfigPath, 'utf-8');
+      expect(getIdleNotificationCooldownSeconds()).toBe(45);
+      expect(readFileSync).toHaveBeenCalledWith(legacyConfigPath, 'utf-8');
+    } finally {
+      restorePlatform();
+    }
   });
 
   it('returns 0 when cooldown is disabled in config', () => {

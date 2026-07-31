@@ -12,12 +12,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { hasUsableBash } from './helpers/bash.js';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const SETUP_SCRIPT = join(REPO_ROOT, 'scripts', 'setup-claude-md.sh');
 const CONFIG_DIR_HELPER = join(REPO_ROOT, 'scripts', 'lib', 'config-dir.sh');
 
 const tempRoots: string[] = [];
+const describeWithBash = hasUsableBash() ? describe : describe.skip;
 
 function createPluginFixture(claudeMdContent: string) {
   const root = mkdtempSync(join(tmpdir(), 'omc-setup-claude-md-'));
@@ -62,7 +64,7 @@ afterEach(() => {
   }
 });
 
-describe('setup-claude-md.sh (issue #1572)', () => {
+describeWithBash('setup-claude-md.sh (issue #1572)', () => {
   it('installs the canonical docs/CLAUDE.md content with OMC markers', () => {
     const fixture = createPluginFixture(`<!-- OMC:START -->
 <!-- OMC:VERSION:9.9.9 -->
@@ -434,7 +436,7 @@ Use the real docs file.
   });
 });
 
-describe('setup-claude-md.sh stale CLAUDE_PLUGIN_ROOT resolution', () => {
+describeWithBash('setup-claude-md.sh stale CLAUDE_PLUGIN_ROOT resolution', () => {
   it('uses docs/CLAUDE.md from the active version in installed_plugins.json, not the stale script location', () => {
     // Simulate: script lives at old version (4.8.2), but installed_plugins.json points to new version (4.9.0)
     const root = mkdtempSync(join(tmpdir(), 'omc-stale-root-'));

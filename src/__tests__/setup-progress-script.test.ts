@@ -3,11 +3,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { hasUsableBash } from './helpers/bash.js';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const SCRIPT_PATH = join(REPO_ROOT, 'scripts', 'setup-progress.sh');
 
 const tempRoots: string[] = [];
+const describeWithBash = hasUsableBash() ? describe : describe.skip;
 
 afterEach(() => {
   while (tempRoots.length > 0) {
@@ -18,7 +20,7 @@ afterEach(() => {
   }
 });
 
-describe('setup-progress.sh', () => {
+describeWithBash('setup-progress.sh', () => {
   it('writes setup completion metadata to CLAUDE_CONFIG_DIR', () => {
     const root = mkdtempSync(join(tmpdir(), 'omc-setup-progress-'));
     tempRoots.push(root);

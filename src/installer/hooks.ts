@@ -92,7 +92,7 @@ function isDefaultClaudeConfigDir(): boolean {
 }
 
 function quoteCommandPath(path: string): string {
-  return `"${path.replace(/"/g, '\\"')}"`;
+  return `"${path.replace(/\\/g, '/').replace(/"/g, '\\"')}"`;
 }
 
 function buildHookCommand(filename: string): string {

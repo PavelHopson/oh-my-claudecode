@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, statSync, realpathSync } from 'fs';
-import { join } from 'path';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, statSync, realpathSync } from 'fs';
+import { isAbsolute, join, parse, relative, sep } from 'path';
 import { homedir, tmpdir } from 'os';
 import type { BridgeConfig, TaskFile, OutboxMessage } from '../types.js';
 import { readTask, updateTask } from '../task-file-ops.js';
@@ -8,11 +8,12 @@ import { checkShutdownSignal, writeShutdownSignal, appendOutbox } from '../inbox
 import { writeHeartbeat, readHeartbeat } from '../heartbeat.js';
 import { sanitizeName } from '../tmux-session.js';
 import { logAuditEvent, readAuditLog } from '../audit-log.js';
-import { getClaudeConfigDir } from '../../utils/config-dir.js';
 
 const TEST_TEAM = 'test-bridge-int';
+const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
+const TEST_CONFIG_ROOT = mkdtempSync(join(realpathSync(tmpdir()), 'test-bridge-config-'));
 // Task files now live in the canonical .omc/state/team path (relative to WORK_DIR)
-const TEAMS_DIR = join(getClaudeConfigDir(), 'teams', TEST_TEAM);
+const TEAMS_DIR = join(TEST_CONFIG_ROOT, 'teams', TEST_TEAM);
 // Resolve symlinks (macOS /var -> /private/var) so validateResolvedPath matches
 const WORK_DIR = join(realpathSync(tmpdir()), '__test_bridge_work__');
 // Canonical tasks dir for this team
@@ -48,6 +49,7 @@ function makeConfig(overrides?: Partial<BridgeConfig>): BridgeConfig {
 }
 
 beforeEach(() => {
+  process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_ROOT;
   mkdirSync(TASKS_DIR, { recursive: true });
   mkdirSync(join(TEAMS_DIR, 'inbox'), { recursive: true });
   mkdirSync(join(TEAMS_DIR, 'outbox'), { recursive: true });
@@ -60,6 +62,15 @@ afterEach(() => {
   rmSync(TASKS_DIR, { recursive: true, force: true });
   rmSync(TEAMS_DIR, { recursive: true, force: true });
   rmSync(WORK_DIR, { recursive: true, force: true });
+  if (ORIGINAL_CLAUDE_CONFIG_DIR === undefined) {
+    delete process.env.CLAUDE_CONFIG_DIR;
+  } else {
+    process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CLAUDE_CONFIG_DIR;
+  }
+});
+
+afterAll(() => {
+  rmSync(TEST_CONFIG_ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
 describe('Bridge Integration', () => {
@@ -307,31 +318,23 @@ describe('validateBridgeWorkingDirectory logic', () => {
     }
     const resolved = realpathSync(workingDirectory);
     const home = homedir();
-    if (!resolved.startsWith(home + '/') && resolved !== home) {
+    const relativeToHome = relative(home, resolved);
+    if (
+      relativeToHome === '..'
+      || relativeToHome.startsWith(`..${sep}`)
+      || isAbsolute(relativeToHome)
+    ) {
       throw new Error(`workingDirectory is outside home directory: ${resolved}`);
     }
   }
 
-  it('rejects /etc as working directory', () => {
-    expect(() => validateBridgeWorkingDirectory('/etc')).toThrow('outside home directory');
+  it('rejects an existing directory outside home', () => {
+    const filesystemRoot = parse(homedir()).root;
+    expect(() => validateBridgeWorkingDirectory(filesystemRoot)).toThrow('outside home directory');
   });
 
-  it('rejects /tmp as working directory (outside home)', () => {
-    // /tmp is typically outside $HOME
-    const home = homedir();
-    if (!'/tmp'.startsWith(home)) {
-      expect(() => validateBridgeWorkingDirectory('/tmp')).toThrow('outside home directory');
-    }
-  });
-
-  it('accepts a valid directory under home', () => {
-    const testDir = join(getClaudeConfigDir(), '__bridge_validate_test__');
-    mkdirSync(testDir, { recursive: true });
-    try {
-      expect(() => validateBridgeWorkingDirectory(testDir)).not.toThrow();
-    } finally {
-      rmSync(testDir, { recursive: true, force: true });
-    }
+  it('accepts the home directory itself', () => {
+    expect(() => validateBridgeWorkingDirectory(homedir())).not.toThrow();
   });
 
   it('rejects nonexistent directory', () => {

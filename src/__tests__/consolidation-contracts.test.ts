@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   clearSkillsCache,
   getBuiltinSkill,
@@ -8,7 +8,7 @@ import { getAgentDefinitions } from '../agents/definitions.js';
 import { resolveDelegation } from '../features/delegation-routing/resolver.js';
 
 describe('Consolidation contracts', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     clearSkillsCache();
   });
 

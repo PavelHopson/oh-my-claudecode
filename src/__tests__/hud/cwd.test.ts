@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { join } from 'path';
 import { renderCwd } from '../../hud/elements/cwd.js';
 
 // Mock os.homedir and path.basename
@@ -54,19 +55,19 @@ describe('renderCwd', () => {
   describe('folder format', () => {
     it('shows parent/leaf to disambiguate common directory names', () => {
       const result = renderCwd('/Users/testuser/workspace/project', 'folder');
-      expect(result).toContain('workspace/project');
+      expect(result).toContain(join('workspace', 'project'));
     });
 
     it('handles nested paths', () => {
       const result = renderCwd('/a/b/c/deep/folder', 'folder');
-      expect(result).toContain('deep/folder');
+      expect(result).toContain(join('deep', 'folder'));
     });
 
     it('disambiguates ambiguous leaf names like src', () => {
       const resultA = renderCwd('/home/user/project-a/src', 'folder');
       const resultB = renderCwd('/home/user/project-b/src', 'folder');
-      expect(resultA).toContain('project-a/src');
-      expect(resultB).toContain('project-b/src');
+      expect(resultA).toContain(join('project-a', 'src'));
+      expect(resultB).toContain(join('project-b', 'src'));
       expect(resultA).not.toEqual(resultB);
     });
 

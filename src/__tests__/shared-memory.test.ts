@@ -3,6 +3,14 @@ import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { basename, join } from 'path';
 import { homedir, tmpdir } from 'os';
 
+vi.mock('os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('os')>();
+  return {
+    ...actual,
+    homedir: () => actual.tmpdir(),
+  };
+});
+
 // Mock getOmcRoot to use our test directory
 const mockGetOmcRoot = vi.fn<(worktreeRoot?: string) => string>();
 vi.mock('../lib/worktree-paths.js', async (importOriginal) => {

@@ -29,6 +29,8 @@ export interface PluginConfig {
     verifier?: { model?: string };
     securityReviewer?: { model?: string };
     codeReviewer?: { model?: string };
+    databaseReviewer?: { model?: string };
+    typescriptReviewer?: { model?: string };
     testEngineer?: { model?: string };
     designer?: { model?: string };
     writer?: { model?: string };
@@ -37,6 +39,7 @@ export interface PluginConfig {
     tracer?: { model?: string };
     gitMaster?: { model?: string };
     codeSimplifier?: { model?: string };
+    refactorCleaner?: { model?: string };
     critic?: { model?: string };
     documentSpecialist?: { model?: string };
   };

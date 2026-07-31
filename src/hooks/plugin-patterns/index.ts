@@ -13,6 +13,14 @@ import { existsSync, readFileSync } from 'fs';
 import { join, extname, normalize } from 'path';
 import { execFileSync, spawnSync } from 'child_process';
 
+function packageManagerInvocation(command: 'npm' | 'npx', args: string[]): [string, string[]] {
+  if (process.platform === 'win32') {
+    return [process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', command, ...args]];
+  }
+
+  return [command, args];
+}
+
 // =============================================================================
 // SECURITY UTILITIES
 // =============================================================================
@@ -277,7 +285,8 @@ export function runTypeCheck(directory: string): { success: boolean; message: st
     return { success: true, message: 'TypeScript not installed' };
   }
 
-  const tscResult = spawnSync('npx', ['tsc', '--noEmit'], { cwd: directory, stdio: 'pipe' });
+  const [npxCommand, npxArgs] = packageManagerInvocation('npx', ['tsc', '--noEmit']);
+  const tscResult = spawnSync(npxCommand, npxArgs, { cwd: directory, stdio: 'pipe' });
   if (tscResult.status === 0) {
     return { success: true, message: 'Type check passed' };
   }
@@ -298,7 +307,8 @@ export function runTests(directory: string): { success: boolean; message: string
     try {
       const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
       if (pkg.scripts?.test) {
-        execFileSync('npm', ['test'], { cwd: directory, encoding: 'utf-8', stdio: 'pipe' });
+        const [npmCommand, npmArgs] = packageManagerInvocation('npm', ['test']);
+        execFileSync(npmCommand, npmArgs, { cwd: directory, encoding: 'utf-8', stdio: 'pipe' });
         return { success: true, message: 'Tests passed' };
       }
     } catch (_error) {
@@ -334,7 +344,8 @@ export function runLint(directory: string): { success: boolean; message: string 
       const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
       if (pkg.scripts?.lint) {
         try {
-          execFileSync('npm', ['run', 'lint'], { cwd: directory, encoding: 'utf-8', stdio: 'pipe' });
+          const [npmCommand, npmArgs] = packageManagerInvocation('npm', ['run', 'lint']);
+          execFileSync(npmCommand, npmArgs, { cwd: directory, encoding: 'utf-8', stdio: 'pipe' });
           return { success: true, message: 'Lint passed' };
         } catch (_error) {
           return { success: false, message: 'Lint errors found' };

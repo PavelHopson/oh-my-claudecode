@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -12,7 +12,6 @@ describe('Builtin Skills', () => {
   const originalCwd = process.cwd();
   let tempDirs: string[] = [];
 
-  // Clear cache before each test to ensure fresh loads
   beforeEach(() => {
     if (originalPluginRoot === undefined) {
       delete process.env.CLAUDE_PLUGIN_ROOT;
@@ -34,12 +33,19 @@ describe('Builtin Skills', () => {
     } else {
       process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDir;
     }
+    vi.restoreAllMocks();
     process.chdir(originalCwd);
     tempDirs = [];
-    clearSkillsCache();
   });
 
   afterEach(() => {
+    const environmentChanged =
+      process.env.CLAUDE_PLUGIN_ROOT !== originalPluginRoot
+      || process.env.PATH !== originalPath
+      || process.env.USER_TYPE !== originalUserType
+      || process.env.CLAUDE_CONFIG_DIR !== originalClaudeConfigDir
+      || process.cwd() !== originalCwd;
+
     if (originalPluginRoot === undefined) {
       delete process.env.CLAUDE_PLUGIN_ROOT;
     } else {
@@ -60,19 +66,22 @@ describe('Builtin Skills', () => {
     } else {
       process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDir;
     }
+    vi.restoreAllMocks();
     process.chdir(originalCwd);
     for (const dir of tempDirs) {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
     tempDirs = [];
-    clearSkillsCache();
+    if (environmentChanged) {
+      clearSkillsCache();
+    }
   });
 
   describe('createBuiltinSkills()', () => {
-    it('should return correct number of skills (33 canonical + 1 alias)', () => {
+    it('should return correct number of skills (39 canonical + 1 alias)', () => {
       const skills = createBuiltinSkills();
-      // 34 entries: 33 canonical skills + 1 deprecated alias (psm)
-      expect(skills).toHaveLength(34);
+      // 40 entries: 39 canonical skills + 1 deprecated alias (psm)
+      expect(skills).toHaveLength(40);
     });
 
     it('should return an array of BuiltinSkill objects', () => {
@@ -127,9 +136,11 @@ describe('Builtin Skills', () => {
         'autopilot',
         'cancel',
         'ccg',
+        'clone-website',
         'configure-notifications',
         'deep-dive',
         'deep-interview',
+        'deep-think',
         'deepinit',
         'omc-doctor',
         'external-context',
@@ -145,14 +156,18 @@ describe('Builtin Skills', () => {
         'ralph',
         'ralplan',
         'release',
+        'review-mode',
         'sciomc',
         'self-improve',
+        'senior-review',
         'setup',
         'skill',
         'team',
         'trace',
         'ultraqa',
         'ultrawork',
+        'verify-twice',
+        'visual-explainer',
         'visual-verdict',
         'wiki',
         'writer-memory',
@@ -188,7 +203,7 @@ describe('Builtin Skills', () => {
       const skill = getBuiltinSkill('project-session-manager');
       expect(skill).toBeDefined();
       expect(skill?.template).toContain('## Skill Resources');
-      expect(skill?.template).toContain('skills/project-session-manager');
+      expect(skill?.template.replaceAll('\\', '/')).toContain('skills/project-session-manager');
       expect(skill?.template).toContain('`lib/`');
       expect(skill?.template).toContain('`psm.sh`');
     });
@@ -300,7 +315,7 @@ describe('Builtin Skills', () => {
         JSON.stringify({ omc: { deepInterview: { ambiguityThreshold: 0.12 } } }),
       );
 
-      process.chdir(projectDir);
+      vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
       clearSkillsCache();
 
       const skill = getBuiltinSkill('deep-interview');
@@ -396,7 +411,7 @@ describe('Builtin Skills', () => {
     it('should return canonical skill names by default', () => {
       const names = listBuiltinSkillNames();
 
-      expect(names).toHaveLength(33);
+      expect(names).toHaveLength(39);
       expect(names).toContain('ai-slop-cleaner');
       expect(names).toContain('ask');
       expect(names).toContain('autopilot');
@@ -430,7 +445,7 @@ describe('Builtin Skills', () => {
       const names = listBuiltinSkillNames({ includeAliases: true });
 
       // swarm alias removed in #1131, psm still exists
-      expect(names).toHaveLength(34);
+      expect(names).toHaveLength(40);
       expect(names).toContain('ai-slop-cleaner');
       expect(names).toContain('trace');
       expect(names).toContain('visual-verdict');

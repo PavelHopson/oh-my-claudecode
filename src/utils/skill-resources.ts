@@ -5,16 +5,16 @@ const MAX_RESOURCE_ENTRIES = 12;
 
 function toDisplayPath(pathValue: string): string {
   const relativeToCwd = relative(process.cwd(), pathValue);
-  if (
+  const displayPath = (
     relativeToCwd &&
     relativeToCwd !== '' &&
     !relativeToCwd.startsWith('..') &&
     relativeToCwd !== '.'
-  ) {
-    return relativeToCwd;
-  }
+  ) ? relativeToCwd : pathValue;
 
-  return pathValue;
+  // Skill guidance is Markdown consumed across platforms. Keep its paths
+  // portable and stable instead of leaking the host OS separator.
+  return displayPath.replace(/\\/g, '/');
 }
 
 export interface SkillResourceSummary {

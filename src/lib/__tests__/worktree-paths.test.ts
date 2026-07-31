@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, rmSync, existsSync, mkdtempSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import {
   validatePath,
   resolveOmcPath,
@@ -27,10 +28,11 @@ import {
   clearDualDirWarnings,
 } from '../worktree-paths.js';
 
-const TEST_DIR = '/tmp/worktree-paths-test';
+const TEST_DIR = join(tmpdir(), 'worktree-paths-test');
 
 describe('worktree-paths', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     clearWorktreeCache();
     clearDualDirWarnings();
     mkdirSync(TEST_DIR, { recursive: true });
@@ -179,7 +181,7 @@ describe('worktree-paths', () => {
 
     it('should fall back and log for non-git directories', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      const nonGitDir = mkdtempSync('/tmp/worktree-paths-nongit-');
+      const nonGitDir = mkdtempSync(join(tmpdir(), 'worktree-paths-nongit-'));
 
       const result = resolveToWorktreeRoot(nonGitDir);
 
@@ -197,7 +199,7 @@ describe('worktree-paths', () => {
 
     it('should handle bare repositories by falling back and logging', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      const bareRepoDir = mkdtempSync('/tmp/worktree-paths-bare-');
+      const bareRepoDir = mkdtempSync(join(tmpdir(), 'worktree-paths-bare-'));
       execSync('git init --bare', { cwd: bareRepoDir, stdio: 'pipe' });
 
       const result = resolveToWorktreeRoot(bareRepoDir);
@@ -231,12 +233,16 @@ describe('worktree-paths', () => {
     });
 
     it('should throw for directories outside the trusted root', () => {
-      // /etc is outside any repo worktree root
-      expect(() => validateWorkingDirectory('/etc')).toThrow('outside the trusted worktree root');
+      const outsideDir = mkdtempSync(join(tmpdir(), 'worktree-paths-outside-'));
+      try {
+        expect(() => validateWorkingDirectory(outsideDir)).toThrow('outside the trusted worktree root');
+      } finally {
+        rmSync(outsideDir, { recursive: true, force: true });
+      }
     });
 
     it('should reject a workingDirectory that resolves to a different git root', () => {
-      const nestedRepoDir = mkdtempSync('/tmp/worktree-paths-nested-');
+      const nestedRepoDir = mkdtempSync(join(tmpdir(), 'worktree-paths-nested-'));
       execSync('git init', { cwd: nestedRepoDir, stdio: 'pipe' });
 
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -322,7 +328,7 @@ describe('worktree-paths', () => {
     });
 
     it('should return different results for different directories', () => {
-      const dir2 = mkdtempSync('/tmp/worktree-paths-other-');
+      const dir2 = mkdtempSync(join(tmpdir(), 'worktree-paths-other-'));
       try {
         const id1 = getProjectIdentifier(TEST_DIR);
         const id2 = getProjectIdentifier(dir2);
@@ -334,7 +340,7 @@ describe('worktree-paths', () => {
 
     it('should use git remote URL when available (stable across worktrees)', () => {
       // Create a git repo with a remote
-      const repoDir = mkdtempSync('/tmp/worktree-paths-remote-');
+      const repoDir = mkdtempSync(join(tmpdir(), 'worktree-paths-remote-'));
       try {
         execSync('git init', { cwd: repoDir, stdio: 'pipe' });
         execSync('git remote add origin https://github.com/test/my-repo.git', {
@@ -347,7 +353,7 @@ describe('worktree-paths', () => {
         expect(id).toMatch(/^[a-zA-Z0-9_-]+-[a-f0-9]{16}$/);
 
         // Create a second repo with the same remote — should produce the same hash
-        const repoDir2 = mkdtempSync('/tmp/worktree-paths-remote2-');
+        const repoDir2 = mkdtempSync(join(tmpdir(), 'worktree-paths-remote2-'));
         try {
           execSync('git init', { cwd: repoDir2, stdio: 'pipe' });
           execSync('git remote add origin https://github.com/test/my-repo.git', {
@@ -370,7 +376,7 @@ describe('worktree-paths', () => {
     });
 
     it('should fall back to path hash for repos without remotes', () => {
-      const repoDir = mkdtempSync('/tmp/worktree-paths-noremote-');
+      const repoDir = mkdtempSync(join(tmpdir(), 'worktree-paths-noremote-'));
       try {
         execSync('git init', { cwd: repoDir, stdio: 'pipe' });
         clearWorktreeCache();
@@ -383,7 +389,7 @@ describe('worktree-paths', () => {
     });
 
     it('should sanitize special characters in directory names', () => {
-      const specialDir = '/tmp/worktree paths test!@#';
+      const specialDir = join(tmpdir(), 'worktree paths test!@#');
       mkdirSync(specialDir, { recursive: true });
       try {
         const id = getProjectIdentifier(specialDir);
@@ -407,7 +413,7 @@ describe('worktree-paths', () => {
     });
 
     it('should return centralized path when OMC_STATE_DIR is set', () => {
-      const stateDir = mkdtempSync('/tmp/omc-state-dir-');
+      const stateDir = mkdtempSync(join(tmpdir(), 'omc-state-dir-'));
       try {
         process.env.OMC_STATE_DIR = stateDir;
         const result = getOmcRoot(TEST_DIR);
@@ -420,7 +426,7 @@ describe('worktree-paths', () => {
     });
 
     it('should log warning when both legacy and centralized dirs exist', () => {
-      const stateDir = mkdtempSync('/tmp/omc-state-dir-');
+      const stateDir = mkdtempSync(join(tmpdir(), 'omc-state-dir-'));
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       try {
         process.env.OMC_STATE_DIR = stateDir;
@@ -446,7 +452,7 @@ describe('worktree-paths', () => {
     });
 
     it('should not log warning when only centralized dir exists', () => {
-      const stateDir = mkdtempSync('/tmp/omc-state-dir-');
+      const stateDir = mkdtempSync(join(tmpdir(), 'omc-state-dir-'));
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       try {
         process.env.OMC_STATE_DIR = stateDir;
@@ -466,7 +472,7 @@ describe('worktree-paths', () => {
     });
 
     it('should only log dual-dir warning once per path pair', () => {
-      const stateDir = mkdtempSync('/tmp/omc-state-dir-');
+      const stateDir = mkdtempSync(join(tmpdir(), 'omc-state-dir-'));
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       try {
         process.env.OMC_STATE_DIR = stateDir;
@@ -493,7 +499,7 @@ describe('worktree-paths', () => {
     let stateDir: string;
 
     beforeEach(() => {
-      stateDir = mkdtempSync('/tmp/omc-state-dir-paths-');
+      stateDir = mkdtempSync(join(tmpdir(), 'omc-state-dir-paths-'));
       process.env.OMC_STATE_DIR = stateDir;
     });
 

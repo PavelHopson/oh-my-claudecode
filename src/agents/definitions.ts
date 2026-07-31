@@ -117,6 +117,22 @@ export const codeReviewerAgent: AgentConfig = {
   defaultModel: 'opus'
 };
 
+export const databaseReviewerAgent: AgentConfig = {
+  name: 'database-reviewer',
+  description: 'Database query, index, ORM, and migration safety review specialist (Opus).',
+  prompt: loadAgentPrompt('database-reviewer'),
+  model: 'opus',
+  defaultModel: 'opus'
+};
+
+export const typescriptReviewerAgent: AgentConfig = {
+  name: 'typescript-reviewer',
+  description: 'TypeScript strictness, React hooks, async safety, and performance review specialist (Opus).',
+  prompt: loadAgentPrompt('typescript-reviewer'),
+  model: 'opus',
+  defaultModel: 'opus'
+};
+
 
 /**
  * Git-Master Agent - Git Operations Expert (Sonnet)
@@ -140,6 +156,14 @@ export const codeSimplifierAgent: AgentConfig = {
   defaultModel: 'opus'
 };
 
+export const refactorCleanerAgent: AgentConfig = {
+  name: 'refactor-cleaner',
+  description: 'Dead code, duplicate logic, oversized function, and stale marker cleanup specialist (Sonnet).',
+  prompt: loadAgentPrompt('refactor-cleaner'),
+  model: 'sonnet',
+  defaultModel: 'sonnet'
+};
+
 // ============================================================
 // DEPRECATED ALIASES (Backward Compatibility)
 // ============================================================
@@ -159,6 +183,8 @@ const AGENT_CONFIG_KEY_MAP = {
   verifier: 'verifier',
   'security-reviewer': 'securityReviewer',
   'code-reviewer': 'codeReviewer',
+  'database-reviewer': 'databaseReviewer',
+  'typescript-reviewer': 'typescriptReviewer',
   'test-engineer': 'testEngineer',
   designer: 'designer',
   writer: 'writer',
@@ -167,6 +193,7 @@ const AGENT_CONFIG_KEY_MAP = {
   tracer: 'tracer',
   'git-master': 'gitMaster',
   'code-simplifier': 'codeSimplifier',
+  'refactor-cleaner': 'refactorCleaner',
   critic: 'critic',
   'document-specialist': 'documentSpecialist',
 } as const satisfies Partial<Record<string, keyof NonNullable<PluginConfig['agents']>>>;
@@ -226,6 +253,8 @@ export function getAgentDefinitions(options?: {
     // ============================================================
     'security-reviewer': securityReviewerAgent,
     'code-reviewer': codeReviewerAgent,
+    'database-reviewer': databaseReviewerAgent,
+    'typescript-reviewer': typescriptReviewerAgent,
 
     // ============================================================
     // DOMAIN SPECIALISTS
@@ -238,6 +267,7 @@ export function getAgentDefinitions(options?: {
     tracer: tracerAgent,
     'git-master': gitMasterAgent,
     'code-simplifier': codeSimplifierAgent,
+    'refactor-cleaner': refactorCleanerAgent,
 
     // ============================================================
     // COORDINATION
@@ -295,7 +325,7 @@ You are BOUND to your task list. You do not stop. You do not quit. You do not ta
 ## Your Core Duty
 You coordinate specialized subagents to accomplish complex software engineering tasks. Abandoning work mid-task is not an option. If you stop without completing ALL tasks, you have failed.
 
-## Available Subagents (19 Agents)
+## Available Subagents (22 Agents)
 
 ### Build/Analysis Lane
 - **explore**: Internal codebase discovery (haiku) — fast pattern matching
@@ -310,6 +340,8 @@ You coordinate specialized subagents to accomplish complex software engineering 
 ### Review Lane
 - **security-reviewer**: Security audits (sonnet) — vulns, trust boundaries, authn/authz
 - **code-reviewer**: Comprehensive review (opus) — API contracts, versioning, backward compatibility, logic defects, maintainability, anti-patterns, performance, quality strategy
+- **database-reviewer**: Database review (opus) — queries, indexes, ORM patterns, migration safety
+- **typescript-reviewer**: TypeScript review (opus) — strictness, hooks, async safety, performance
 
 ### Domain Specialists
 - **test-engineer**: Test strategy (sonnet) — coverage, flaky test hardening
@@ -320,6 +352,7 @@ You coordinate specialized subagents to accomplish complex software engineering 
 - **git-master**: Git operations (sonnet) — commits, rebasing, history
 - **document-specialist**: External docs & reference lookup (sonnet) — SDK/API/package research
 - **code-simplifier**: Code clarity (opus) — simplification and maintainability
+- **refactor-cleaner**: Structural cleanup (sonnet) — dead code, duplication, oversized functions, stale markers
 
 ### Coordination
 - **critic**: Plan review + thorough gap analysis (opus) — critical challenge, multi-perspective investigation, structured "What's Missing" analysis

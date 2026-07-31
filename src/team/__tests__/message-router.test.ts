@@ -9,19 +9,19 @@ import { getClaudeConfigDir } from '../../utils/config-dir.js';
 
 describe('message-router', () => {
   let testDir: string;
+  let originalConfigDir: string | undefined;
   const teamName = 'test-router';
 
   beforeEach(() => {
+    originalConfigDir = process.env.CLAUDE_CONFIG_DIR;
     testDir = mkdtempSync(join(tmpdir(), 'message-router-test-'));
+    process.env.CLAUDE_CONFIG_DIR = testDir;
   });
 
   afterEach(() => {
     rmSync(testDir, { recursive: true, force: true });
-    // Clean up inbox files that may have been created
-    try {
-      const inboxDir = join(getClaudeConfigDir(), 'teams', teamName, 'inbox');
-      rmSync(inboxDir, { recursive: true, force: true });
-    } catch { /* ignore */ }
+    if (originalConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = originalConfigDir;
   });
 
   function registerWorker(name: string, agentType: string = 'mcp-codex') {

@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'child_process';
 import { existsSync } from 'fs';
 import { mkdir, readFile, symlink, writeFile } from 'fs/promises';
-import { dirname, join, resolve } from 'path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import {
   readModeState,
   writeModeState,
@@ -269,9 +269,16 @@ function allowedBootstrapDirtyPaths(
     allowedDirtyPaths
       .map((path) => {
         const normalizedPath = resolve(path);
-        return normalizedPath.startsWith(`${normalizedWorktreePath}/`)
-          ? normalizedPath.slice(normalizedWorktreePath.length + 1)
-          : null;
+        const relativePath = relative(normalizedWorktreePath, normalizedPath);
+        if (
+          relativePath === ''
+          || relativePath === '..'
+          || relativePath.startsWith(`..${sep}`)
+          || isAbsolute(relativePath)
+        ) {
+          return null;
+        }
+        return relativePath.split(sep).join('/');
       })
       .filter((path): path is string => Boolean(path)),
   );
@@ -281,11 +288,11 @@ function isAllowedRuntimeDirtyLine(
   line: string,
   allowedBootstrapPaths: ReadonlySet<string>,
 ): boolean {
-  const trimmed = line.trim();
-  if (trimmed.length < 4) return false;
-  const path = normalizeGitStatusPath(trimmed.slice(3).trim());
-  if (!trimmed.startsWith('?? ')) return false;
-  return isAllowedRuntimeDirtyPath(path) || allowedBootstrapPaths.has(path);
+  if (line.length < 4 || line[2] !== ' ') return false;
+  const status = line.slice(0, 2);
+  const path = normalizeGitStatusPath(line.slice(3).trim());
+  if (allowedBootstrapPaths.has(path)) return true;
+  return status === '??' && isAllowedRuntimeDirtyPath(path);
 }
 
 export function assertResetSafeWorktree(worktreePath: string, allowedDirtyPaths: readonly string[] = []): void {
@@ -768,8 +775,23 @@ export async function materializeAutoresearchMissionToWorktree(
   const sandboxFile = join(missionDir, 'sandbox.md');
 
   await mkdir(missionDir, { recursive: true });
-  await writeFile(missionFile, contract.missionContent, 'utf-8');
-  await writeFile(sandboxFile, contract.sandboxContent, 'utf-8');
+  const writeIfContentChanged = async (filePath: string, content: string): Promise<void> => {
+    try {
+      const existing = await readFile(filePath, 'utf-8');
+      const normalizeLineEndings = (value: string) => value.replace(/\r\n?/g, '\n');
+      if (normalizeLineEndings(existing) === normalizeLineEndings(content)) {
+        return;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+    await writeFile(filePath, content, 'utf-8');
+  };
+
+  await writeIfContentChanged(missionFile, contract.missionContent);
+  await writeIfContentChanged(sandboxFile, contract.sandboxContent);
 
   return {
     ...contract,

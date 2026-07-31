@@ -250,7 +250,8 @@ describe("plan output configuration", () => {
         filenameTemplate: "plan-{{name}}.md",
       });
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      process.chdir(originalCwd);
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 });

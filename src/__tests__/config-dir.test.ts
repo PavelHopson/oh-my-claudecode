@@ -6,8 +6,11 @@ import { basename, join, normalize } from 'path';
 import { getClaudeConfigDir } from '../utils/config-dir.js'
 import { isValidTranscriptPath } from '../lib/worktree-paths.js';
 import { findRuleFiles } from '../hooks/rules-injector/finder.js';
+import { hasUsableBash, hasUsablePosixShell } from './helpers/bash.js';
 
 const originalConfigDir = process.env.CLAUDE_CONFIG_DIR;
+const itWithBash = hasUsableBash() ? it : it.skip;
+const itWithPosixShell = hasUsablePosixShell() ? it : it.skip;
 
 describe('getClaudeConfigDir', () => {
   afterEach(() => {
@@ -86,7 +89,7 @@ describe('getClaudeConfigDir', () => {
     expect(output).toBe(normalize(join(homedir(), '.claude-alt')));
   });
 
-  it('find-node.sh resolves a ~-prefixed CLAUDE_CONFIG_DIR before reading .omc-config.json', () => {
+  itWithPosixShell('find-node.sh resolves a ~-prefixed CLAUDE_CONFIG_DIR before reading .omc-config.json', () => {
     const homeDir = mkdtempSync(join(tmpdir(), 'omc-find-node-home-'));
     const configDir = join(homeDir, '.claude-alt');
     mkdirSync(configDir, { recursive: true });
@@ -110,7 +113,7 @@ describe('getClaudeConfigDir', () => {
     expect(output).toBe('ok');
   });
 
-  it('shared shell helper expands a ~-prefixed CLAUDE_CONFIG_DIR', () => {
+  itWithBash('shared shell helper expands a ~-prefixed CLAUDE_CONFIG_DIR', () => {
     const homeDir = mkdtempSync(join(tmpdir(), 'omc-uninstall-home-'));
     const output = execFileSync('bash', ['-lc', `. "${join(process.cwd(), 'scripts', 'lib', 'config-dir.sh')}"; resolve_claude_config_dir`], {
       cwd: process.cwd(),
@@ -143,14 +146,21 @@ describe('getClaudeConfigDir', () => {
 
 describe('CLAUDE_CONFIG_DIR downstream integration', () => {
   let origConfigDir: string | undefined;
+  let origHome: string | undefined;
+  let origUserProfile: string | undefined;
   let tempDir: string;
   let tildeConfigDir: string;
 
   beforeEach(() => {
     origConfigDir = process.env.CLAUDE_CONFIG_DIR;
+    origHome = process.env.HOME;
+    origUserProfile = process.env.USERPROFILE;
     tempDir = join(tmpdir(), `omc-test-configdir-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const testHome = join(tempDir, 'home');
+    mkdirSync(testHome, { recursive: true });
+    process.env.HOME = testHome;
+    process.env.USERPROFILE = testHome;
     tildeConfigDir = join(homedir(), `.omc-test-configdir-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(tempDir, { recursive: true });
   });
 
   afterEach(() => {
@@ -159,13 +169,12 @@ describe('CLAUDE_CONFIG_DIR downstream integration', () => {
     } else {
       process.env.CLAUDE_CONFIG_DIR = origConfigDir;
     }
+    if (origHome === undefined) delete process.env.HOME;
+    else process.env.HOME = origHome;
+    if (origUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = origUserProfile;
     try {
       rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // ignore cleanup errors
-    }
-    try {
-      rmSync(tildeConfigDir, { recursive: true, force: true });
     } catch {
       // ignore cleanup errors
     }

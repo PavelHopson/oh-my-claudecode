@@ -8,10 +8,11 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
+import { join } from 'path';
 
 const CLAUDE_CONFIG_DIR = '/tmp/test-claude';
-const CACHE_PATH = `${CLAUDE_CONFIG_DIR}/plugins/oh-my-claudecode/.usage-cache.json`;
-const CACHE_DIR = `${CLAUDE_CONFIG_DIR}/plugins/oh-my-claudecode`;
+const CACHE_DIR = join(CLAUDE_CONFIG_DIR, 'plugins', 'oh-my-claudecode');
+const CACHE_PATH = join(CACHE_DIR, '.usage-cache.json');
 
 function createFsMock(initialFiles: Record<string, string>) {
   const files = new Map(Object.entries(initialFiles));
@@ -117,11 +118,11 @@ describe('usage API stale data handling', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    vi.unmock('../../utils/config-dir.js');
-    vi.unmock('../../utils/ssrf-guard.js');
-    vi.unmock('fs');
-    vi.unmock('child_process');
-    vi.unmock('https');
+    vi.doUnmock('../../utils/config-dir.js');
+    vi.doUnmock('../../utils/ssrf-guard.js');
+    vi.doUnmock('fs');
+    vi.doUnmock('child_process');
+    vi.doUnmock('https');
   });
 
   it('sets stale=true when serving cached data on 429', async () => {
@@ -227,7 +228,7 @@ describe('usage API stale data handling', () => {
     });
 
     const { fsModule } = createFsMock({ [CACHE_PATH]: validRateLimitedCache });
-    vi.doMock('../../utils/paths.js', () => ({
+    vi.doMock('../../utils/config-dir.js', () => ({
       getClaudeConfigDir: () => CLAUDE_CONFIG_DIR,
     }));
     vi.doMock('../../utils/ssrf-guard.js', () => ({

@@ -44,6 +44,8 @@ export function buildDefaultConfig(): PluginConfig {
       verifier: { model: defaultTierModels.MEDIUM },
       securityReviewer: { model: defaultTierModels.MEDIUM },
       codeReviewer: { model: defaultTierModels.HIGH },
+      databaseReviewer: { model: defaultTierModels.HIGH },
+      typescriptReviewer: { model: defaultTierModels.HIGH },
       testEngineer: { model: defaultTierModels.MEDIUM },
       designer: { model: defaultTierModels.MEDIUM },
       writer: { model: defaultTierModels.LOW },
@@ -52,6 +54,7 @@ export function buildDefaultConfig(): PluginConfig {
       tracer: { model: defaultTierModels.MEDIUM },
       gitMaster: { model: defaultTierModels.MEDIUM },
       codeSimplifier: { model: defaultTierModels.HIGH },
+      refactorCleaner: { model: defaultTierModels.MEDIUM },
       critic: { model: defaultTierModels.HIGH },
       documentSpecialist: { model: defaultTierModels.MEDIUM },
     },
@@ -611,6 +614,14 @@ export function generateConfigSchema(): object {
             type: "object",
             properties: { model: { type: "string" } },
           },
+          databaseReviewer: {
+            type: "object",
+            properties: { model: { type: "string" } },
+          },
+          typescriptReviewer: {
+            type: "object",
+            properties: { model: { type: "string" } },
+          },
           testEngineer: {
             type: "object",
             properties: { model: { type: "string" } },
@@ -640,6 +651,10 @@ export function generateConfigSchema(): object {
             properties: { model: { type: "string" } },
           },
           codeSimplifier: {
+            type: "object",
+            properties: { model: { type: "string" } },
+          },
+          refactorCleaner: {
             type: "object",
             properties: { model: { type: "string" } },
           },

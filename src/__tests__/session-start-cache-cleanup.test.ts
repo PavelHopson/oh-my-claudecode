@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, lstatSync, readlinkSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'child_process';
 
@@ -96,7 +96,7 @@ describe('session-start.mjs — plugin cache cleanup uses symlinks', () => {
     expect(v1Stat.isSymbolicLink()).toBe(true);
 
     const target = readlinkSync(join(fakeCacheBase, '4.4.1'));
-    expect(target).toBe('4.4.3');
+    expect(basename(target)).toBe('4.4.3');
   });
 
   it('with only 2 versions, no symlinks are created', () => {
@@ -141,10 +141,10 @@ describe('session-start.mjs — plugin cache cleanup uses symlinks', () => {
 
     // 4.4.1 and 4.4.0: symlinks to 4.4.3
     expect(lstatSync(join(fakeCacheBase, '4.4.1')).isSymbolicLink()).toBe(true);
-    expect(readlinkSync(join(fakeCacheBase, '4.4.1'))).toBe('4.4.3');
+    expect(basename(readlinkSync(join(fakeCacheBase, '4.4.1')))).toBe('4.4.3');
 
     expect(lstatSync(join(fakeCacheBase, '4.4.0')).isSymbolicLink()).toBe(true);
-    expect(readlinkSync(join(fakeCacheBase, '4.4.0'))).toBe('4.4.3');
+    expect(basename(readlinkSync(join(fakeCacheBase, '4.4.0')))).toBe('4.4.3');
   });
 
   it('updates an existing symlink pointing to a non-latest target', () => {
@@ -160,7 +160,7 @@ describe('session-start.mjs — plugin cache cleanup uses symlinks', () => {
     // 4.4.1 should now be a symlink to 4.4.3 (updated from 4.4.2)
     const v1Stat = lstatSync(join(fakeCacheBase, '4.4.1'));
     expect(v1Stat.isSymbolicLink()).toBe(true);
-    expect(readlinkSync(join(fakeCacheBase, '4.4.1'))).toBe('4.4.3');
+    expect(basename(readlinkSync(join(fakeCacheBase, '4.4.1')))).toBe('4.4.3');
 
     // 4.4.3 and 4.4.2 remain as real directories
     expect(lstatSync(join(fakeCacheBase, '4.4.3')).isSymbolicLink()).toBe(false);

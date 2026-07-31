@@ -24,7 +24,9 @@ export interface WorkerPermissions {
  *
  * Uses iterative character-by-character matching to avoid ReDoS risk from regex.
  */
-function matchGlob(pattern: string, path: string): boolean {
+function matchGlob(rawPattern: string, rawPath: string): boolean {
+  const pattern = rawPattern.replace(/\\/g, '/');
+  const path = rawPath.replace(/\\/g, '/');
   let pi = 0; // pattern index
   let si = 0; // string (path) index
   let starPi = -1; // pattern index after last '*' fallback point
@@ -253,7 +255,7 @@ export function findPermissionViolations(
     if (!isPathAllowed(permissions, filePath, cwd)) {
       // Determine which deny pattern matched for the reason
       const absPath = resolve(cwd, filePath);
-      const relPath = relative(cwd, absPath);
+      const relPath = relative(cwd, absPath).replace(/\\/g, '/');
 
       let reason: string;
       if (relPath.startsWith('..')) {

@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { projectMemoryWriteTool } from '../memory-tools.js';
 import { getProjectIdentifier } from '../../lib/worktree-paths.js';
 
-const TEST_DIR = '/tmp/memory-tools-test';
+const TEST_DIR = mkdtempSync(join(tmpdir(), 'memory-tools-test-'));
 
 // Mock validateWorkingDirectory to allow test directory
 vi.mock('../../lib/worktree-paths.js', async () => {
@@ -69,7 +70,7 @@ describe('memory-tools payload validation', () => {
   });
 
   it('should write to centralized project memory without creating a local file when OMC_STATE_DIR is set', async () => {
-    const stateDir = '/tmp/memory-tools-centralized-state';
+    const stateDir = join(tmpdir(), `memory-tools-centralized-state-${process.pid}`);
     rmSync(stateDir, { recursive: true, force: true });
     mkdirSync(stateDir, { recursive: true });
     rmSync(join(TEST_DIR, '.omc'), { recursive: true, force: true });

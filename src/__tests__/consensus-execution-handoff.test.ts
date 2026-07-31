@@ -13,7 +13,7 @@
  * Also verifies that non-consensus modes (interview, direct, review) are unaffected.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { getBuiltinSkill, clearSkillsCache } from '../features/builtin-skills/skills.js';
 
 /**
@@ -36,7 +36,7 @@ function extractTagContent(template: string, tag: string): string | undefined {
 }
 
 describe('Issue #595: Consensus mode execution handoff', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     clearSkillsCache();
   });
 

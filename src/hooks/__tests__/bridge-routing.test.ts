@@ -19,6 +19,7 @@ import {
   HookType,
 } from '../bridge.js';
 import { flushPendingWrites } from '../subagent-tracker/index.js';
+import { closeJobDb } from '../../lib/job-state-db.js';
 
 // ============================================================================
 // Hook Routing Tests
@@ -1163,7 +1164,8 @@ Read src/hooks/bridge.ts first.`,
         const checkpointDir = join(tempDir, '.omc', 'state', 'checkpoints');
         expect(existsSync(checkpointDir)).toBe(true);
       } finally {
-        rmSync(tempDir, { recursive: true, force: true });
+        closeJobDb(tempDir);
+        rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
       }
     });
 

@@ -49,7 +49,7 @@ const mockedLoadConfig = vi.mocked(loadConfig);
 
 describe('Background Process Guard (issue #302)', () => {
   const originalEnv = process.env;
-  const resolvedDirectory = process.cwd();
+  const resolvedDirectory = process.cwd().replace(/\\/g, '/');
   let claudeConfigDir: string;
 
   const writeClaudePermissions = (allow: string[] = [], ask: string[] = []): void => {
