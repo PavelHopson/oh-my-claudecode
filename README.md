@@ -43,6 +43,10 @@ Use **Colibri** as a reference for local model runtime planning, not as a defaul
 
 Details: [docs/LOCAL-MODEL-RUNTIME-RD.md](docs/LOCAL-MODEL-RUNTIME-RD.md).
 
+### Kimi K3 benchmark backlog
+
+The Eclipse fork has a synthetic OMC workload in the AI Hub-owned direct Kimi K3 benchmark. It is a network-gated evaluation, not a provider integration. See [docs/KIMI-K3-BENCHMARK.md](docs/KIMI-K3-BENCHMARK.md). TokenRouter is explicitly excluded until its vendor and data-processing boundary are documented.
+
 ---
 
 ## Core Maintainers
